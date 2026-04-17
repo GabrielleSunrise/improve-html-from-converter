@@ -155,11 +155,14 @@
             <h2>Инструменты правки результата:</h2>
             <div class="buttons-row">
                 <button onmousedown="event.preventDefault()" onclick="insertImageBlock()">Вставить блок картинки</button>
-                <button onmousedown="event.preventDefault()" onclick="changeTag('h2', 'h3')">h2 -> h3</button>
-                <button onmousedown="event.preventDefault()" onclick="changeTag('h2', 'h4')">h2 -> h4</button>
+                <button onmousedown="event.preventDefault()" onclick="setHeading(2)">Сделать h2</button>
+                <button onmousedown="event.preventDefault()" onclick="setHeading(3)">Сделать h3</button>
+                <button onmousedown="event.preventDefault()" onclick="setHeading(4)">Сделать h4</button>
+                <button onmousedown="event.preventDefault()" onclick="setHeading(5)">Сделать h5</button>
+                <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список -> Абзацы</button>   
                 <button onmousedown="event.preventDefault()" onclick="makeList('ul')">В список ul</button>
                 <button onmousedown="event.preventDefault()" onclick="makeList('ol')">В список ol</button>
-                <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список -> Абзацы</button>             
+                <button id="cleanEntitiesOnly">Всё-таки удалить спецсимволы</button>          
             </div>
             <div class="buttons-row buttons-row-2-items">
                 <button onmousedown="event.preventDefault()" onclick="makeBold()">Сделать жирным</button>
@@ -316,16 +319,31 @@
             saveState();
         }
 
-        function changeTag(fromTag, toTag) {
+        function setHeading(level) {
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.toString().trim() === "") {
-                alert("Выделите фрагмент с тегами в поле результата");
+                alert("Выделите текст или тег в поле результата");
                 return;
             }
-            const range = selection.getRangeAt(0);
-            const selectedText = range.toString(); 
-            const regex = new RegExp(`<${fromTag}(.*?)>(.*?)<\/${fromTag}>`, 'gi');
-            const newText = selectedText.replace(regex, `<${toTag}$1>$2</${toTag}>`);
+
+            saveState();
+            let selectedText = selection.toString().trim();
+            const targetTag = `h${level}`;
+
+            const headerRegex = /<h[1-6](.*?)>([\s\S]*?)<\/h[1-6]>/gi;
+            
+            const pRegex = /<p(.*?)>([\s\S]*?)<\/p>/gi;
+
+            let newText;
+
+            if (headerRegex.test(selectedText)) {
+                newText = selectedText.replace(headerRegex, `<${targetTag}$1>$2</${targetTag}>`);
+            } else if (pRegex.test(selectedText)) {
+                newText = selectedText.replace(pRegex, `<${targetTag}$1>$2</${targetTag}>`);
+            } else {
+                newText = `<${targetTag}>${selectedText}</${targetTag}>`;
+            }
+
             replaceSelectionWithText(newText);
         }
 
@@ -366,6 +384,30 @@
                 replaceSelectionWithText(matches.join('\n'));
             }
         }
+        document.getElementById('cleanEntitiesOnly').addEventListener('click', function() {
+            saveState();
+            let text = outputDiv.innerText;
+
+            const inlineTags = ['span', 'strong', 'b', 'a'];
+            
+            let result = text.replace(/&nbsp;<\/([a-z1-6]+)>/gi, (match, tagName) => {
+                if (inlineTags.includes(tagName.toLowerCase())) {
+                    return ' </' + tagName + '>';
+                }
+                return '</' + tagName + '>';
+            });
+
+            result = result.replace(/&ndash;|&mdash;/g, '—');
+            result = result.replace(/&hellip;/g, '...');
+
+            result = result.replace(/&nbsp;/g, ' ');
+
+            result = result.replace(/[ ]{2,}/g, ' ');
+            
+            outputDiv.innerText = result;
+            updateView();
+            saveState();
+        });
 
         function makeBold() {
             const selection = window.getSelection();
