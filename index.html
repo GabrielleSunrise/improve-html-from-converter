@@ -250,6 +250,18 @@
 
         function cleanWordHtml(html) {
             let result = html;    
+			result = result.replace(/(<[^>]+>)|([^<]+)/g, function(match, tag, text) {
+		        if (tag) return tag;
+		        
+		        let t = text;
+		        t = t.replace(/(^|[\s(\[<{])"/g, '$1«');
+		        t = t.replace(/"/g, '»');
+	
+		        t = t.replace(/(^|[\s(\[<{])'/g, '$1«');
+		        t = t.replace(/'/g, '»');
+		        
+		        return t;
+		    });
             result = result.replace(/&ndash;|&mdash;/g, '—');
             result = result.replace(/&laquo;|&ldquor;|&lsquor;|&ldquo;/g, '«');
 			result = result.replace(/&raquo;|&rdquor;|&rsquor;|&rdquo;/g, '»');
