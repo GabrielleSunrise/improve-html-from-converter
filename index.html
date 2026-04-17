@@ -137,7 +137,7 @@
         </div>
         
         <div class="buttons">
-            <button id="cleanButton" class="blue">Заменить спецсимволы и превратить h1 в h2</button>
+            <button id="cleanButton" class="blue">Заменить спецсимволы, кавычки на ёлочки, превратить h1 в h2</button>
         </div>
             
         <div>
@@ -265,6 +265,7 @@
             result = result.replace(/&ndash;|&mdash;/g, '—');
             result = result.replace(/&laquo;|&ldquor;|&lsquor;|&ldquo;/g, '«');
 			result = result.replace(/&raquo;|&rdquor;|&rsquor;|&rdquo;/g, '»');
+			result = result.replace(/&hellip;/g, '...');
             result = result.replace(/(?:&nbsp;|\s){2,}/g, ' ');
             result = result.replace(/&nbsp;/g, ' ');
             result = result.replace(/«<strong>/g, '<strong>«');
