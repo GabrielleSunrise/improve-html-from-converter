@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Редактор html</title>
+    <title>Правка html</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -132,7 +132,7 @@
 <body>
 
     <div class="container">
-        <h1>Редактор html</h1>
+        <h1>Правка html</h1>
 
         <div>
             <label for="inputHtml">Вставьте текст:</label>
@@ -322,29 +322,77 @@
         function setHeading(level) {
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.toString().trim() === "") {
-                alert("Выделите текст или тег в поле результата");
+                alert("Выделите текст");
                 return;
             }
 
             saveState();
-            let selectedText = selection.toString().trim();
             const targetTag = `h${level}`;
+            let selectedText = selection.toString().trim();
 
-            const headerRegex = /<h[1-6](.*?)>([\s\S]*?)<\/h[1-6]>/gi;
-            
-            const pRegex = /<p(.*?)>([\s\S]*?)<\/p>/gi;
+            selectedText = selectedText.replace(/<(?:p|h[1-6]|div)[^>]*>([\s\S]*?)<\/(?:p|h[1-6]|div)>/gi, '$1');
 
-            let newText;
+            selectedText = selectedText.replace(/^<\/?[a-z1-6]+[^>]*>/i, '').replace(/<\/?[a-z1-6]+[^>]*>$/i, '');
 
-            if (headerRegex.test(selectedText)) {
-                newText = selectedText.replace(headerRegex, `<${targetTag}$1>$2</${targetTag}>`);
-            } else if (pRegex.test(selectedText)) {
-                newText = selectedText.replace(pRegex, `<${targetTag}$1>$2</${targetTag}>`);
-            } else {
-                newText = `<${targetTag}>${selectedText}</${targetTag}>`;
+            const text = outputDiv.innerText;
+            const startIdx = getCaretPosition(outputDiv);
+            const endIdx = startIdx + selection.toString().length;
+
+            const leftText = text.substring(0, startIdx);
+            const rightText = text.substring(endIdx);
+
+            const tagStart = leftText.lastIndexOf('<');
+            const tagEndRel = rightText.indexOf('>');
+            const tagEnd = tagEndRel !== -1 ? endIdx + tagEndRel + 1 : -1;
+
+            let surroundingTagMatch = leftText.substring(tagStart).match(/^<([a-z1-6]+)/i);
+            let parentTagName = surroundingTagMatch ? surroundingTagMatch[1].toLowerCase() : null;
+
+            if (selection.toString().trim().match(/^<h[1-6][^>]*>.*<\/h[1-6]>$/i)) {
+                const newHeader = `<${targetTag}>${selectedText}</${targetTag}>`;
+                replaceSelectionWithText(newHeader);
+            } 
+
+            else if (parentTagName && /^h[1-6]$/.test(parentTagName)) {
+
+                const fullHeaderStart = tagStart;
+                const fullHeaderEnd = text.indexOf(`</${parentTagName}>`, startIdx) + parentTagName.length + 3;
+
+                const oldHeaderText = text.substring(fullHeaderStart, fullHeaderEnd).replace(/<[^>]+>/g, '');
+                
+                const newHeader = `<${targetTag}>${oldHeaderText}</${targetTag}>`;
+
+                setSelectionRange(outputDiv, fullHeaderStart, fullHeaderEnd);
+                replaceSelectionWithText(newHeader);
             }
 
-            replaceSelectionWithText(newText);
+            else if (parentTagName === 'p' || parentTagName === 'li' || parentTagName === 'div') {
+                const pCloseIdx = text.indexOf(`</${parentTagName}>`, startIdx);
+                
+                const textBefore = text.substring(tagStart, startIdx); // <p>...
+                const textAfter = text.substring(endIdx, pCloseIdx + parentTagName.length + 3);
+
+                let result = "";
+                
+                if (textBefore.includes('>') && textBefore.split('>')[1].trim() !== "") {
+                    result += textBefore + `</${parentTagName}>\n`;
+                }
+
+                result += `<${targetTag}>${selectedText}</${targetTag}>`;
+
+                const afterContent = textAfter.substring(0, textAfter.lastIndexOf('<'));
+                if (afterContent.trim() !== "") {
+                    result += `\n<${parentTagName}>` + afterContent + `</${parentTagName}>`;
+                }
+
+                setSelectionRange(outputDiv, tagStart, pCloseIdx + parentTagName.length + 3);
+                replaceSelectionWithText(result);
+            } 
+            else {
+                replaceSelectionWithText(`<${targetTag}>${selectedText}</${targetTag}>`);
+            }
+
+            updateView();
         }
 
         function makeList(type) {
