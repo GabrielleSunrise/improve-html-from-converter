@@ -254,11 +254,11 @@
 		        if (tag) return tag;
 		        
 		        let t = text;
-		        t = t.replace(/(^|[\s(\[<{])"/g, '$1«');
-		        t = t.replace(/"/g, '»');
-	
-		        t = t.replace(/(^|[\s(\[<{])'/g, '$1«');
-		        t = t.replace(/'/g, '»');
+		        t = t.replace(/(^|[\s(\[<{])["“]/g, '$1«');
+		        t = t.replace(/["”]/g, '»');
+		
+		        t = t.replace(/(^|[\s(\[<{])['‘]/g, '$1«');
+		        t = t.replace(/['’]/g, '»');
 		        
 		        return t;
 		    });
