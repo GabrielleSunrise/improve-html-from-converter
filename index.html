@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Поправить html после конвертации из Word/Google Docs</title>
+    <title>Правка html после конвертации из Word/Google Docs</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -55,15 +55,28 @@
             display: block;
             width: 100%;
             padding: 12px 20px;
-            background-color: #007bff;
-            color: white;
             border: none;
             border-radius: 4px;
             font-size: 1em;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            transition: 0.3s ease;
+            background: transparent;
+            border: 1px solid #90b4da;
+            color: #333;
         }
         button:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+            color: #fff;
+        }
+        button.green, button.blue, button.purple {
+            border: none;
+            color: #fff;
+        }
+        button.blue {
+            background-color: #007bff;
+        }
+        button.blue:hover {
             background-color: #0056b3;
         }
         button.green {
@@ -72,11 +85,11 @@
         button.green:hover {
             background-color: #2e8032;
         }
-        pre {
-            background-color: #e9e9e9;
-            padding: 10px;
-            border-radius: 4px;
-            white-space: pre-wrap;
+        button.purple {
+            background-color: #864ea4;
+        }
+        button.purple:hover {
+            background-color: #551c73;
         }
         #outputCleaned {
             width: 100%;
@@ -87,51 +100,67 @@
             font-size: 14px;
             white-space: pre-wrap;
             overflow-y: auto;
-            background: #fdfdfd;
-            color: #333;
+            background: #333;
+            color: #fff;
+            line-height: 1.5;
             outline: none;
             box-sizing: border-box;
             margin-bottom: 20px;
+            font-family: monospace, Arial, sans-serif;
         }
-        .hl-tag { 
-            color: green; font-weight: bold; 
-        }
+        .hl-tag { color: #93f493; }
+        .hl-attr { color: #b99eeb; }
+        .hl-bold { font-weight: bold; color: #f6ffa2; }
+
         .buttons-row {
             display: flex;
             flex-wrap: wrap;
             gap: 15px;
+            margin-bottom: 20px;
         }
         .buttons-row button {
             width: calc(33.3% - 10px);
+        }
+        .buttons-row-2-items button {
+            width: calc(50% - 8px);
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>Поправить html после конвертации из Word/Google Docs</h1>
+        <h1>Правка html после конвертации из Word/Google Docs</h1>
 
         <div>
             <label for="inputHtml">Вставьте текст:</label>
-            <textarea id="inputHtml" rows="10" placeholder="Вставьте сюда ваш HTML-текст..."></textarea>
+            <textarea id="inputHtml" rows="10" placeholder="Вставьте сюда ваш HTML-код..."></textarea>
         </div>
         
         <div class="buttons">
-            <button id="cleanButton">Заменить спецсимволы и превратить h1 в h2</button>
+            <button id="cleanButton" class="blue">Заменить спецсимволы и превратить h1 в h2</button>
         </div>
             
         <div>
             <label for="outputCleaned">Результат:</label>
             <div id="outputCleaned" contenteditable="true" spellcheck="false"></div>
-			<button onclick="copyToClipboard('outputCleaned', this)" class="green">Копировать</button>
-            <h2>Кнопки для работы с текстом результата:</h2>
+            
+			<button id="copyFinalBtn" class="green">Скопировать результат</button>
+
+            <h2>Инструменты правки результата:</h2>
             <div class="buttons-row">
-                <button id="genImgBtn">Создать блок картинки</button>
-                <button onclick="changeTag('h2', 'h3')">h2 -> h3</button>
-                <button onclick="changeTag('h2', 'h4')">h2 -> h4</button>
-                <button onclick="makeList('ul')">Превратить в ul</button>
-                <button onclick="makeList('ol')">Превратить в ol</button>
-                <button onclick="listToParagraphs()">Список -> Абзацы</button>
+                <button onmousedown="event.preventDefault()" onclick="insertImageBlock()">Вставить блок картинки</button>
+                <button onmousedown="event.preventDefault()" onclick="changeTag('h2', 'h3')">h2 -> h3</button>
+                <button onmousedown="event.preventDefault()" onclick="changeTag('h2', 'h4')">h2 -> h4</button>
+                <button onmousedown="event.preventDefault()" onclick="makeList('ul')">В список ul</button>
+                <button onmousedown="event.preventDefault()" onclick="makeList('ol')">В список ol</button>
+                <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список -> Абзацы</button>             
+            </div>
+            <div class="buttons-row buttons-row-2-items">
+                <button onmousedown="event.preventDefault()" onclick="makeBold()">Сделать жирным</button>
+                <button onmousedown="event.preventDefault()" onclick="makeNotBold()">Сделать не жирным</button>
+            </div>
+            <div class="buttons">
+                <button onmousedown="event.preventDefault()" onclick="undo()" class="purple">↩ Галя, отмена последнего действия (Ctrl+Z)</button>
             </div>
         </div>
     </div>
@@ -139,13 +168,20 @@
     <script>
         const inputTextArea = document.getElementById('inputHtml');
         const outputDiv = document.getElementById('outputCleaned');
+        let historyStack = [];
+        const maxHistory = 50;
 
         function highlight(text) {
-            let html = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            let html = text.replace(/&/g, "&amp;")
+                           .replace(/</g, "&lt;")
+                           .replace(/>/g, "&gt;")
+                           .replace(/"/g, "&quot;");
 
-            html = html.replace(/(&lt;\/?[a-z1-6]+.*?&gt;)/gi, '<span class="hl-tag">$1</span>');
+            html = html.replace(/(&lt;strong&gt;)([\s\S]*?)(&lt;\/strong&gt;)/gi, '$1<span class="hl-bold">$2</span>$3');
 
-            html = html.replace(/(\s+)([a-z-]+)(=&quot;.*?&quot;)/gi, '$1<span class="hl-attr">$2</span>$3');
+            html = html.replace(/(&lt;\/?[a-z1-6]+[\s\S]*?&gt;)/gi, '<span class="hl-tag">$1</span>');
+
+            html = html.replace(/(\s+)([a-z-]+)(=&quot;[\s\S]*?&quot;)/gi, '$1<span class="hl-attr">$2</span>$3');
 
             return html;
         }
@@ -153,27 +189,15 @@
         function updateView() {
             const text = outputDiv.innerText;
             const caretPos = getCaretPosition(outputDiv);
-            
             outputDiv.innerHTML = highlight(text); 
-            
             restoreCaretPosition(outputDiv, caretPos); 
         }
-
-        outputDiv.addEventListener('input', updateView);
-
-        document.getElementById('cleanButton').addEventListener('click', function() {
-            const sourceText = document.getElementById('inputHtml').value;
-            const cleanedText = cleanWordHtml(sourceText);
-            
-            outputDiv.innerText = cleanedText;
-            updateView();
-        });
 
         function getCaretPosition(element) {
             let position = 0;
             const selection = window.getSelection();
             if (selection.rangeCount !== 0) {
-                const range = window.getSelection().getRangeAt(0);
+                const range = selection.getRangeAt(0);
                 const preCaretRange = range.cloneRange();
                 preCaretRange.selectNodeContents(element);
                 preCaretRange.setEnd(range.endContainer, range.endOffset);
@@ -189,7 +213,6 @@
             range.collapse(true);
             let nodeStack = [element];
             let node, found = false, stop = false;
-
             while (!stop && (node = nodeStack.pop())) {
                 if (node.nodeType === 3) {
                     let nextCharCount = charCount + node.length;
@@ -210,188 +233,179 @@
             selection.addRange(range);
         }
 
-        function getCurrentText() {
-            return outputTextArea.value.trim() !== "" ? outputTextArea.value : inputTextArea.value;
+        function saveState() {
+            const currentText = outputDiv.innerText;
+            if (historyStack.length > 0 && historyStack[historyStack.length - 1] === currentText) return;
+            historyStack.push(currentText);
+            if (historyStack.length > maxHistory) historyStack.shift();
         }
-        
-  		function cleanWordHtml(html) {
+
+        function undo() {
+            if (historyStack.length <= 1) return;
+            historyStack.pop();
+            const prevState = historyStack[historyStack.length - 1];
+            outputDiv.innerText = prevState;
+            updateView();
+        }
+
+        function cleanWordHtml(html) {
             let result = html;    
             result = result.replace(/&ndash;|&mdash;/g, '—');
-            result = result.replace(/&ldquo;/g, '«');
-            result = result.replace(/&rdquo;/g, '»');
-
-            result = result.replace(/(?:&nbsp;|\s){2,}/g, '&nbsp;');
-            result = result.replace(/&nbsp;+(?=<\/)/g, '');
+            result = result.replace(/&ldquor;|&lsquor;|&ldquo;/g, '«');
+            result = result.replace(/&rdquor;|&rsquor;|&rdquo;/g, '»');
+            result = result.replace(/(?:&nbsp;|\s){2,}/g, ' ');
             result = result.replace(/&nbsp;/g, ' ');
-            result = result.replace(/ {2,}/g, ' ');
-
-    		result = result.replace(/«<strong>/g, '<strong>«');
-    		result = result.replace(/<\/strong>»/g, '»</strong>');
-
+            result = result.replace(/«<strong>/g, '<strong>«');
+            result = result.replace(/<\/strong>»/g, '»</strong>');
             result = result.replace(/<h1/g, '<h2').replace(/<\/h1>/g, '</h2>');
-        
             return result;
         }
 
-		document.getElementById('cleanButton').addEventListener('click', function() {
+        document.getElementById('cleanButton').addEventListener('click', function() {
             const sourceText = inputTextArea.value;
             const cleanedText = cleanWordHtml(sourceText);
-            outputTextArea.value = cleanedText;
+            outputDiv.innerText = cleanedText;
+            updateView();
+            saveState();
         });
 
-    document.getElementById('genImgBtn').addEventListener('click', function() {
-        const imgTemplate = '<p>\n<img src="" alt="">\n</p>';
-        
-        navigator.clipboard.writeText(imgTemplate).then(() => {
-            const btn = document.getElementById('genImgBtn');
-            const originalText = btn.innerText;
-            btn.innerText = 'Блок скопирован!';
-            setTimeout(() => { btn.innerText = originalText; }, 1500);
-        });
-    });
-
-    document.getElementById('copyFinalBtn').addEventListener('click', function() {
-        copyToClipboard('outputCleaned', this); 
-    });
-
-    function copyToClipboard(elementId, btn) {
-        const el = document.getElementById(elementId);
-        
-
-        const textToCopy = (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') 
-            ? el.value 
-            : el.innerText;
-
-        navigator.clipboard.writeText(textToCopy).then(() => {
-            const originalText = btn.innerText;
-            btn.innerText = 'Скопировано!';
-            btn.style.backgroundColor = '#2ecc71';
-            btn.style.color = '#fff';
-
-            setTimeout(() => {
-                btn.innerText = originalText;
-                btn.style.backgroundColor = '';
-                btn.style.color = '';
-            }, 2000);
-        }).catch(err => {
-            console.error('Ошибка при копировании: ', err);
-            alert('Не удалось скопировать текст');
-        });
-    }
-
-    function changeTag(fromTag, toTag) {
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-
-        const range = selection.getRangeAt(0);
-        const selectedText = range.toString(); 
-
-        if (selectedText.trim() === "") {
-            alert("Сначала выделите заголовок (вместе с тегами) в поле результата");
-            return;
+        function insertImageBlock() {
+            const imgTemplate = '\n<p>\n  <img src="" alt="">\n</p>\n';
+            replaceSelectionWithText(imgTemplate);
         }
 
-        const regex = new RegExp(`<${fromTag}(.*?)>(.*?)<\/${fromTag}>`, 'gi');
-        const newText = selectedText.replace(regex, `<${toTag}$1>$2</${toTag}>`);
-
-        replaceSelectionWithText(newText);
-    }
-
-    function stripTagsFromSelection() {
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-
-        const range = selection.getRangeAt(0);
-        const selectedText = range.toString();
-
-        if (selectedText.trim() === "") return;
-
-        const newText = selectedText.replace(/<\/?[^>]+(>|$)/g, "");
-
-        replaceSelectionWithText(newText);
-    }
-
-    function makeList(type) {
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-
-        const range = selection.getRangeAt(0);
-        let selectedText = range.toString().trim();
-
-        if (selectedText === "") {
-            alert("Выделите текст или абзацы, которые хотите превратить в список");
-            return;
+        function replaceSelectionWithText(newText) {
+            saveState();
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            const textNode = document.createTextNode(newText);
+            range.insertNode(textNode);
+            
+            range.setStartAfter(textNode);
+            range.setEndAfter(textNode);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            
+            updateView(); 
+            saveState();
         }
 
-        let items = [];
-        if (selectedText.includes('</p>')) {
-            items = selectedText
-                .split(/<\/p>/)
-                .map(item => item.replace(/<p[^>]*>/g, '').trim())
-                .filter(item => item !== "");
-        } else {
-            items = selectedText
-                .split('\n')
-                .map(item => item.trim())
-                .filter(item => item !== "");
+        function changeTag(fromTag, toTag) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.toString().trim() === "") {
+                alert("Выделите фрагмент с тегами в поле результата");
+                return;
+            }
+            const range = selection.getRangeAt(0);
+            const selectedText = range.toString(); 
+            const regex = new RegExp(`<${fromTag}(.*?)>(.*?)<\/${fromTag}>`, 'gi');
+            const newText = selectedText.replace(regex, `<${toTag}$1>$2</${toTag}>`);
+            replaceSelectionWithText(newText);
         }
 
-        const cleanedItems = items.map(item => {
-            return item.replace(/^(&middot;|&bull;|[-•*·]|\d+[\.\)])\s*/g, '').trim();
+        function makeList(type) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.toString().trim() === "") {
+                alert("Выделите текст или абзацы, которые хотите превратить в список");
+                return;
+            }
+            const range = selection.getRangeAt(0);
+            let selectedText = range.toString().trim();
+            
+            let items = selectedText.includes('</p>') 
+                ? selectedText.split(/<\/p>/).map(item => item.replace(/<p[^>]*>/g, '').trim())
+                : selectedText.split('\n').map(item => item.trim());
+            
+            items = items.filter(item => item !== "");
+            const cleanedItems = items.map(item => item.replace(/^(&middot;|&bull;|[-•*·]|\d+[\.\)])\s*/g, '').trim());
+            const listItems = cleanedItems.map(item => `    <li>${item}</li>`).join('\n');
+            const newList = `<${type}>\n${listItems}\n</${type}>`;
+            replaceSelectionWithText(newList);
+        }
+
+        function listToParagraphs() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.toString().trim() === "") {
+                alert("Выделите список целиком");
+                return;
+            }
+            const range = selection.getRangeAt(0);
+            let selectedText = range.toString().trim();
+            const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+            let matches = [], match;
+            while ((match = liRegex.exec(selectedText)) !== null) {
+                matches.push(`<p>${match[1].trim()}</p>`);
+            }
+            if (matches.length > 0) {
+                replaceSelectionWithText(matches.join('\n'));
+            }
+        }
+
+        function makeBold() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.toString().trim() === "") return;
+            const selectedText = selection.toString();
+            replaceSelectionWithText(`<strong>${selectedText}</strong>`);
+        }
+
+        function makeNotBold() {
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.toString().trim() === "") return;
+            const selectedText = selection.toString();
+            const newText = selectedText.replace(/<\/?strong>/gi, '');
+            replaceSelectionWithText(newText);
+        }
+
+        document.getElementById('copyFinalBtn').addEventListener('click', function() {
+            const text = outputDiv.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = this.innerText;
+                this.innerText = 'Скопировано!';
+                setTimeout(() => { this.innerText = originalText; }, 2000);
+            });
         });
 
-        const listItems = cleanedItems.map(item => `    <li>${item}</li>`).join('\n');
-        const newList = `<${type}>\n${listItems}\n</${type}>`;
+        outputDiv.addEventListener('keydown', function(e) {
 
-        replaceSelectionWithText(newList);
-    }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveState();
+                
+                const selection = window.getSelection();
+                const range = selection.getRangeAt(0);
+                
+                const br = document.createTextNode('\n');
+                range.insertNode(br);
+                
+                range.setStartAfter(br);
+                range.setEndAfter(br);
+                selection.removeAllRanges();
+                selection.addRange(range);
+                
+                updateView();
+            }
+        });
 
-    function listToParagraphs() {
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
+        outputDiv.addEventListener('input', (e) => {
+            updateView();
+        });
 
-        const range = selection.getRangeAt(0);
-        let selectedText = range.toString().trim();
+        outputDiv.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            
+            saveState();
+            document.execCommand('insertText', false, text);
+            updateView();
+            saveState();
+        });
 
-        if (selectedText === "") {
-            alert("Выделите список (вместе с тегами <ul> и <li>) в поле результата");
-            return;
-        }
+        saveState();
 
-        const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
-        let matches = [];
-        let match;
-
-        while ((match = liRegex.exec(selectedText)) !== null) {
-            matches.push(`<p>${match[1].trim()}</p>`);
-        }
-
-        if (matches.length === 0) {
-            alert("В выделенном фрагменте не найдено тегов <li>. Убедитесь, что вы выделили список целиком.");
-            return;
-        }
-
-        const newText = matches.join('\n');
-
-        replaceSelectionWithText(newText);
-    }
-
-    function replaceSelectionWithText(newText) {
-        const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-
-        const range = selection.getRangeAt(0);
-        
-        range.deleteContents();
-        
-        const textNode = document.createTextNode(newText);
-        range.insertNode(textNode);
-        
-        selection.removeAllRanges();
-        
-        updateView(); 
-    }
     </script>
-
 </body>
 </html>
