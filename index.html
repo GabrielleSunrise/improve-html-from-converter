@@ -92,7 +92,7 @@
         <div>
             <label for="outputCleaned">Результат:</label>
             <textarea id="outputCleaned" rows="10" readonly placeholder="Здесь появится очищенный текст..."></textarea>
-			      <button onclick="copyToClipboard('outputCleaned', this)">Копировать</button>
+			<button onclick="copyToClipboard('outputCleaned', this)">Копировать</button>
         </div>
     </div>
 
@@ -114,6 +114,9 @@
         result = result.replace(/&nbsp;+(?=<\/)/g, '');
         result = result.replace(/&nbsp;/g, ' ');
         result = result.replace(/ {2,}/g, ' ');
+
+		result = result.replace(/«<strong>/g, '<strong>«');
+		result = result.replace(/<\/strong>»/g, '»</strong>');
 
         result = result.replace(/<h1/g, '<h2').replace(/<\/h1>/g, '</h2>');
     
