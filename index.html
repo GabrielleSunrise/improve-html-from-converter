@@ -251,8 +251,8 @@
         function cleanWordHtml(html) {
             let result = html;    
             result = result.replace(/&ndash;|&mdash;/g, '—');
-            result = result.replace(/&ldquor;|&lsquor;|&ldquo;/g, '«');
-            result = result.replace(/&rdquor;|&rsquor;|&rdquo;/g, '»');
+            result = result.replace(/&laquo;|&ldquor;|&lsquor;|&ldquo;/g, '«');
+			result = result.replace(/&raquo;|&rdquor;|&rsquor;|&rdquo;/g, '»');
             result = result.replace(/(?:&nbsp;|\s){2,}/g, ' ');
             result = result.replace(/&nbsp;/g, ' ');
             result = result.replace(/«<strong>/g, '<strong>«');
