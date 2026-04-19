@@ -133,6 +133,8 @@
 
     <div class="container">
         <h1>Правка html</h1>
+        <p><small>*Нахожусь в процессе тестирования и доработки, отдельные функции могут работать не совсем так, как от них ожидается</small></p>
+        <br>
 
         <div>
             <label for="inputHtml">Вставьте текст:</label>
@@ -140,7 +142,10 @@
         </div>
         
         <div class="buttons in-col">
-            <button id="cleanButton" class="blue">Заменить спецсимволы, кавычки на ёлочки, превратить h1 в h2</button>
+            <button id="fromGoogleDocs" class="blue">Конвертить из Google Docs</button>
+        </div>
+        <div class="buttons in-col">
+            <button id="cleanButton">Заменить спецсимволы, кавычки на ёлочки, превратить h1 в h2</button>
         </div>
         <div class="buttons">
             <button id="pasteToResult" class="green">Отправить в "Результат" как есть для редактирования</button>
@@ -162,7 +167,7 @@
                 <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список -> Абзацы</button>   
                 <button onmousedown="event.preventDefault()" onclick="makeList('ul')">В список ul</button>
                 <button onmousedown="event.preventDefault()" onclick="makeList('ol')">В список ol</button>
-                <button id="cleanEntitiesOnly">Всё-таки удалить спецсимволы</button>          
+                <button id="cleanEntitiesOnly">Удалить спецсимволы</button>          
             </div>
             <div class="buttons-row buttons-row-2-items">
                 <button onmousedown="event.preventDefault()" onclick="makeBold()">Сделать жирным</button>
@@ -262,6 +267,116 @@
             updateView();
         }
 
+        inputTextArea.addEventListener('paste', function(e) {
+            e.preventDefault();
+
+            let html = (e.clipboardData || window.clipboardData).getData('text/html');
+
+            if (html) {
+                this.value = html;
+            } else {
+                let text = (e.clipboardData || window.clipboardData).getData('text/plain');
+                this.value = text;
+            }
+        });
+
+        function cleanHTML(htmlInput) {
+            let rawHtml = htmlInput.replace(/\u200B/g, '').replace(/<!--[\s\S]*?-->/g, '');
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(rawHtml, 'text/html');
+            const body = doc.body;
+
+            const allSpans = body.querySelectorAll('span');
+            allSpans.forEach(span => {
+                const style = span.getAttribute('style') || '';
+                let content = span.innerHTML;
+
+                if (style.includes('font-weight:700') || style.includes('font-weight:bold')) {
+                    content = `<strong>${content}</strong>`;
+                }
+
+                if (style.includes('font-style:italic')) {
+                    content = `<em>${content}</em>`;
+                }
+
+                if (content !== span.innerHTML) {
+                    span.innerHTML = content;
+                }
+            });
+
+            const allElements = body.querySelectorAll('*');
+            allElements.forEach(el => {
+                const tagName = el.tagName.toUpperCase();
+                const attributes = [...el.attributes];
+                
+                attributes.forEach(attr => {
+                    const isHref = (tagName === 'A' && attr.name === 'href');
+                    const isSrc = (tagName === 'IMG' && (attr.name === 'src' || attr.name === 'alt'));
+                    
+                    if (!isHref && !isSrc) {
+                        el.removeAttribute(attr.name);
+                    }
+                });
+
+                if (tagName === 'A') {
+                    let href = el.getAttribute('href');
+                    if (href && href.includes('google.com/url?q=')) {
+                        try {
+                            const urlObj = new URL(href);
+                            const actualUrl = urlObj.searchParams.get('q');
+                            if (actualUrl) el.setAttribute('href', actualUrl);
+                        } catch (e) {}
+                    }
+                }
+            });
+
+            body.querySelectorAll('meta, link, style, script').forEach(el => el.remove());
+
+            const wrappers = body.querySelectorAll('span, b, strong, em, i');
+            wrappers.forEach(el => {
+                const hasBlock = el.querySelector('p, h1, h2, h3, h4, h5, h6, ul, ol, li, div');
+                if (el.tagName === 'SPAN' || hasBlock) {
+                    el.replaceWith(...el.childNodes);
+                }
+            });
+
+            body.querySelectorAll('li').forEach(li => {
+                const internalP = li.querySelectorAll('p');
+                internalP.forEach(p => p.replaceWith(...p.childNodes));
+                li.innerHTML = li.innerHTML.trim();
+            });
+
+            let result = body.innerHTML;
+            
+            ['ul', 'ol', 'li', 'table', 'tr'].forEach(tag => {
+                result = result.replace(new RegExp(`<${tag}>`, 'gi'), `<${tag}>\n`);
+            });
+
+            ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'table', 'tr', 'div'].forEach(tag => {
+                result = result.split(`</${tag}>`).join(`</${tag}>\n`);
+            });
+            result = result.replace(/(<img[^>]*>)/gi, '$1\n');
+
+            result = result
+                .replace(/\n\s*\n/g, '\n')
+                .replace(/<br\s*\/?>\s*$/gi, '');
+            return result.trim();
+        }
+
+        document.getElementById('fromGoogleDocs').addEventListener('click', function() {
+            const sourceText = inputTextArea.value; 
+            
+            let cleanStructure = cleanHTML(sourceText);
+            
+            let finalHtml = cleanWordHtml(cleanStructure);
+
+            outputDiv.innerText = finalHtml;
+            
+            updateView();
+            saveState();
+        });
+
         function cleanWordHtml(html) {
             let result = html;    
             result = result.replace(/(<[^>]+>)|([^<]+)/g, function(match, tag, text) {
@@ -289,8 +404,11 @@
         }
 
         document.getElementById('cleanButton').addEventListener('click', function() {
-            const sourceText = inputTextArea.value;
+            const currentText = outputDiv.innerText.trim();
+            const sourceText = currentText !== "" ? currentText : inputTextArea.value;
+            
             const cleanedText = cleanWordHtml(sourceText);
+            
             outputDiv.innerText = cleanedText;
             updateView();
             saveState();
@@ -326,9 +444,15 @@
                 return;
             }
 
+            let selectedText = selection.toString().trim();
+
+            if (!selectedText.startsWith('<') || !selectedText.endsWith('>')) {
+                alert("Нужно выделить строку целиком, вместе с тегами.\n\nНапример: <p>Ваш текст</p>");
+                return;
+            }
+
             saveState();
             const targetTag = `h${level}`;
-            let selectedText = selection.toString().trim();
 
             selectedText = selectedText.replace(/<(?:p|h[1-6]|div)[^>]*>([\s\S]*?)<\/(?:p|h[1-6]|div)>/gi, '$1');
 
@@ -603,7 +727,7 @@
         }
 
         document.getElementById('copyFinalBtn').addEventListener('click', function() {
-            const text = outputDiv.innerText;
+            const text = outputDiv.innerText.replace(/\u200B/g, '').trim();
             navigator.clipboard.writeText(text).then(() => {
                 const originalText = this.innerText;
                 this.innerText = 'Скопировано!';
