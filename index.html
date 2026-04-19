@@ -537,23 +537,33 @@
         }
 
         function replaceSelectionWithText(newText) {
-            saveState();
             const selection = window.getSelection();
+
             if (!selection.rangeCount) return;
+
             const range = selection.getRangeAt(0);
-            range.deleteContents();
-            const textNode = document.createTextNode(newText);
-            range.insertNode(textNode);
+
+            if (!outputDiv.contains(range.commonAncestorContainer)) {
+                alert("Установите курсор в место вставки картинки в поле результата");
+                return; 
+            }
+
+            saveState();
             
-            range.setStartAfter(textNode);
-            range.setEndAfter(textNode);
+            const activeRange = selection.getRangeAt(0);
+            
+            activeRange.deleteContents();
+            const textNode = document.createTextNode(newText);
+            activeRange.insertNode(textNode);
+            
+            activeRange.setStartAfter(textNode);
+            activeRange.setEndAfter(textNode);
             selection.removeAllRanges();
-            selection.addRange(range);
+            selection.addRange(activeRange);
             
             updateView(); 
             saveState();
         }
-
         function setHeading(level) {
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.toString().trim() === "") {
