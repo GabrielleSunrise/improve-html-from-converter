@@ -63,7 +63,7 @@
             font-size: 1em;
             cursor: pointer;
             transition: 0.3s ease;
-            background: transparent;
+            background: rgba(0, 123, 255, 0.08);
             border: 1px solid #90b4da;
             color: #333;
         }
@@ -90,6 +90,7 @@
         }
         button.purple {
             background-color: #864ea4;
+            margin-top: 8px;
         }
         button.purple:hover {
             background-color: #551c73;
@@ -119,13 +120,18 @@
             display: flex;
             flex-wrap: wrap;
             gap: 15px;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
         .buttons-row button {
             width: calc(33.3% - 10px);
+            padding: 6px 12px;
         }
         .buttons-row-2-items button {
             width: calc(50% - 8px);
+        }
+
+        .buttons-row-4-items button {
+            width: calc((100% - 45px) / 4);
         }
     </style>
 </head>
@@ -142,13 +148,13 @@
         </div>
         
         <div class="buttons in-col">
-            <button id="fromGoogleDocs" class="blue">Конвертить из Google Docs</button>
+            <button id="fromGoogleDocs" class="blue">Конвертировать из Google Docs/Word и т.п.</button>
         </div>
         <div class="buttons in-col">
             <button id="cleanButton">Заменить спецсимволы, кавычки на ёлочки, превратить h1 в h2</button>
         </div>
         <div class="buttons">
-            <button id="pasteToResult" class="green">Отправить в "Результат" как есть для редактирования</button>
+            <button id="pasteToResult">Отправить в "Результат" как есть для редактирования</button>
         </div>
             
         <div>
@@ -158,25 +164,35 @@
             <button id="copyFinalBtn" class="green">Скопировать результат</button>
 
             <h2>Инструменты правки результата:</h2>
-            <div class="buttons-row">
+            <div class="buttons-row buttons-row-2-items">
                 <button onmousedown="event.preventDefault()" onclick="insertImageBlock()">Вставить блок картинки</button>
-                <button onmousedown="event.preventDefault()" onclick="setHeading(2)">Сделать h2</button>
-                <button onmousedown="event.preventDefault()" onclick="setHeading(3)">Сделать h3</button>
-                <button onmousedown="event.preventDefault()" onclick="setHeading(4)">Сделать h4</button>
-                <button onmousedown="event.preventDefault()" onclick="setHeading(5)">Сделать h5</button>
-                <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список -> Абзацы</button>   
-                <button onmousedown="event.preventDefault()" onclick="makeList('ul')">В список ul</button>
-                <button onmousedown="event.preventDefault()" onclick="makeList('ol')">В список ol</button>
-                <button id="cleanEntitiesOnly">Удалить спецсимволы</button>          
+                <button id="cleanEntitiesOnly">Удалить спецсимволы</button> 
             </div>
             <div class="buttons-row buttons-row-2-items">
                 <button onmousedown="event.preventDefault()" onclick="makeBold()">Сделать жирным</button>
                 <button onmousedown="event.preventDefault()" onclick="makeNotBold()">Сделать не жирным</button>
             </div>
+            <h3>Превращения:</h3>
+            <div class="buttons-row buttons-row-4-items">
+                <button onmousedown="event.preventDefault()" onclick="setHeading(2)">В h2</button>
+                <button onmousedown="event.preventDefault()" onclick="setHeading(3)">В h3</button>
+                <button onmousedown="event.preventDefault()" onclick="setHeading(4)">В h4</button>
+                <button onmousedown="event.preventDefault()" onclick="setHeading(5)">В h5</button>
+            </div>
+            <div class="buttons-row">
+                <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список в абзацы</button>   
+                <button onmousedown="event.preventDefault()" onclick="makeList('ul')">В список ul</button>
+                <button onmousedown="event.preventDefault()" onclick="makeList('ol')">В список ol</button>
+         
+            </div>
             <h3>Ссылки:</h3>
             <div class="buttons-row buttons-row-2-items">
                 <button onmousedown="event.preventDefault()" onclick="addLinkAttr('target')">target="_blank"</button>
                 <button onmousedown="event.preventDefault()" onclick="addLinkAttr('rel')">noindex nofollow</button>
+            </div>
+            <div class="buttons-row buttons-row-2-items">
+                <button onmousedown="event.preventDefault()" onclick="convertUrlsToLinks()">Авто-ссылки (URL, Email)</button>
+                <button onmousedown="event.preventDefault()" onclick="convertPhonesToLinks()">Превратить телефоны в ссылки</button>
             </div>
             <div class="buttons">
                 <button onmousedown="event.preventDefault()" onclick="undo()" class="purple">↩ Галя, отмена последнего действия</button>
@@ -281,6 +297,7 @@
         });
 
         function cleanHTML(htmlInput) {
+
             let rawHtml = htmlInput.replace(/\u200B/g, '').replace(/<!--[\s\S]*?-->/g, '');
 
             const parser = new DOMParser();
@@ -291,32 +308,23 @@
             allSpans.forEach(span => {
                 const style = span.getAttribute('style') || '';
                 let content = span.innerHTML;
-
                 if (style.includes('font-weight:700') || style.includes('font-weight:bold')) {
                     content = `<strong>${content}</strong>`;
                 }
-
                 if (style.includes('font-style:italic')) {
                     content = `<em>${content}</em>`;
                 }
-
-                if (content !== span.innerHTML) {
-                    span.innerHTML = content;
-                }
+                if (content !== span.innerHTML) span.innerHTML = content;
             });
 
             const allElements = body.querySelectorAll('*');
             allElements.forEach(el => {
                 const tagName = el.tagName.toUpperCase();
                 const attributes = [...el.attributes];
-                
                 attributes.forEach(attr => {
                     const isHref = (tagName === 'A' && attr.name === 'href');
                     const isSrc = (tagName === 'IMG' && (attr.name === 'src' || attr.name === 'alt'));
-                    
-                    if (!isHref && !isSrc) {
-                        el.removeAttribute(attr.name);
-                    }
+                    if (!isHref && !isSrc) el.removeAttribute(attr.name);
                 });
 
                 if (tagName === 'A') {
@@ -331,7 +339,7 @@
                 }
             });
 
-            body.querySelectorAll('meta, link, style, script').forEach(el => el.remove());
+            body.querySelectorAll('meta, link, style, script, title').forEach(el => el.remove());
 
             const wrappers = body.querySelectorAll('span, b, strong, em, i');
             wrappers.forEach(el => {
@@ -341,14 +349,26 @@
                 }
             });
 
-            body.querySelectorAll('li').forEach(li => {
-                const internalP = li.querySelectorAll('p');
+            const allParagraphs = body.querySelectorAll('p, div, h1, h2, h3, h4, h5, h6');
+            allParagraphs.forEach(el => {
+                const cleanContent = el.innerHTML.replace(/<br\s*\/?>/gi, '').trim();
+                if (cleanContent === '') {
+                    el.remove();
+                }
+            });
+
+            const blocks = body.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6');
+            blocks.forEach(el => {
+                const internalP = el.querySelectorAll('p');
                 internalP.forEach(p => p.replaceWith(...p.childNodes));
-                li.innerHTML = li.innerHTML.trim();
+                el.innerHTML = el.innerHTML.trim();
             });
 
             let result = body.innerHTML;
-            
+
+            result = result.replace(/\r?\n|\r/g, ' '); 
+            result = result.replace(/\s\s+/g, ' ');
+
             ['ul', 'ol', 'li', 'table', 'tr'].forEach(tag => {
                 result = result.replace(new RegExp(`<${tag}>`, 'gi'), `<${tag}>\n`);
             });
@@ -356,11 +376,15 @@
             ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'table', 'tr', 'div'].forEach(tag => {
                 result = result.split(`</${tag}>`).join(`</${tag}>\n`);
             });
+            
             result = result.replace(/(<img[^>]*>)/gi, '$1\n');
+
+            result = result.replace(/^\s+/gm, ''); 
 
             result = result
                 .replace(/\n\s*\n/g, '\n')
                 .replace(/<br\s*\/?>\s*$/gi, '');
+                
             return result.trim();
         }
 
@@ -594,6 +618,55 @@
             const selectedText = selection.toString();
             const newText = selectedText.replace(/<\/?strong>/gi, '');
             replaceSelectionWithText(newText);
+        }
+
+        function convertUrlsToLinks() {
+            saveState();
+            let text = outputDiv.innerText;
+
+            const combinedRegex = /<a\b[^>]*>[\s\S]*?<\/a>|(<[^>]+>)|((https?:\/\/[^\s<]+[^.,\s<])|([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}))/gi;
+
+            let result = text.replace(combinedRegex, (match, anyTag, content, url, email) => {
+                if (match.startsWith('<')) {
+                    return match;
+                }
+                if (url) {
+                    return `<a href="${url}">${url}</a>`;
+                }
+                if (email) {
+                    return `<a href="mailto:${email}">${email}</a>`;
+                }
+                return match;
+            });
+
+            outputDiv.innerText = result;
+            updateView();
+            saveState();
+        }
+
+        function convertPhonesToLinks() {
+            saveState();
+            let text = outputDiv.innerText;
+
+            const combinedRegex = /<a\b[^>]*>[\s\S]*?<\/a>|(<[^>]+>)|((?:\+7|8)[\s\-\(]*\d{3}[\s\-\)]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2})/gi;
+
+            let result = text.replace(combinedRegex, (match, anyTag, content, phone) => {
+                if (match.startsWith('<')) {
+                    return match;
+                }
+                if (phone) {
+                    let cleanNumber = phone.replace(/[^\d+]/g, '');
+                    if (cleanNumber.startsWith('8')) {
+                        cleanNumber = '+7' + cleanNumber.substring(1);
+                    }
+                    return `<a href="tel:${cleanNumber}">${phone}</a>`;
+                }
+                return match;
+            });
+
+            outputDiv.innerText = result;
+            updateView();
+            saveState();
         }
 
         document.getElementById('pasteToResult').addEventListener('click', function() {
