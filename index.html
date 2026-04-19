@@ -29,6 +29,9 @@
         h1 {
             margin-bottom: 25px;
         }
+        h2 {
+            margin-top: 32px;
+        }
         label {
             display: block;
             margin-bottom: 8px;
@@ -90,7 +93,6 @@
         }
         button.purple {
             background-color: #864ea4;
-            margin-top: 8px;
         }
         button.purple:hover {
             background-color: #551c73;
@@ -109,7 +111,6 @@
             line-height: 1.5;
             outline: none;
             box-sizing: border-box;
-            margin-bottom: 20px;
             font-family: monospace, Arial, sans-serif;
         }
         .hl-tag { color: #93f493; }
@@ -119,19 +120,89 @@
         .buttons-row {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 12px;
+            gap: 8px;
+            margin-bottom: 24px;
+            justify-content: center;
         }
         .buttons-row button {
-            width: calc(33.3% - 10px);
-            padding: 6px 12px;
+            padding: 10px 12px;
+            width: fit-content;
         }
-        .buttons-row-2-items button {
-            width: calc(50% - 8px);
+        .search-bar {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 2px 2px 2px 10px;
+            margin-top: 4px;
+            margin-bottom: 20px;
         }
 
-        .buttons-row-4-items button {
-            width: calc((100% - 45px) / 4);
+        #searchInput {
+            flex: 1;
+            border: none;
+            padding: 8px 5px;
+            font-size: 14px;
+            outline: none;
+            margin-bottom: 0;
+            background: transparent;
+        }
+
+        .search-controls {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+
+        #searchStatus {
+            font-family: monospace;
+            font-size: 12px;
+            color: #888;
+            margin-right: 10px;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        .search-btn {
+            width: 32px !important;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 3px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .search-btn:hover {
+            background: #eee;
+            color: #000;
+            border: none;
+        }
+
+        .search-hl {
+            background-color: rgba(255, 255, 0, 0.3);
+            border-radius: 2px;
+        }
+
+        .search-hl.current {
+            background-color: #f6ffa2 !important;
+            color: #000 !important;
+            box-shadow: 0 0 10px #f6ffa2;
+        }
+
+        .search-hl.current .hl-tag {
+            color: #409240 !important;
+        }
+
+        .search-hl.current .hl-attr {
+            color: #7551b8 !important;
         }
     </style>
 </head>
@@ -160,37 +231,40 @@
         <div>
             <label for="outputCleaned">Результат:</label>
             <div id="outputCleaned" contenteditable="true" spellcheck="false"></div>
+
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="Поиск в коде" title="Введите текст для поиска">
+                <div class="search-controls">
+                    <span id="searchStatus">0/0</span>
+                    <button class="search-btn" onmousedown="event.preventDefault()" onclick="searchPrev()" title="Предыдущее">▲</button>
+                    <button class="search-btn" onmousedown="event.preventDefault()" onclick="searchNext()" title="Следующее">▼</button>
+                </div>
+            </div>
             
             <button id="copyFinalBtn" class="green">Скопировать результат</button>
 
             <h2>Инструменты правки результата:</h2>
-            <div class="buttons-row buttons-row-2-items">
+            <div class="buttons-row">
                 <button onmousedown="event.preventDefault()" onclick="insertImageBlock()">Вставить блок картинки</button>
                 <button id="cleanEntitiesOnly">Удалить спецсимволы</button> 
-            </div>
-            <div class="buttons-row buttons-row-2-items">
                 <button onmousedown="event.preventDefault()" onclick="makeBold()">Сделать жирным</button>
                 <button onmousedown="event.preventDefault()" onclick="makeNotBold()">Сделать не жирным</button>
             </div>
             <h3>Превращения:</h3>
-            <div class="buttons-row buttons-row-4-items">
+            <div class="buttons-row">
                 <button onmousedown="event.preventDefault()" onclick="setHeading(2)">В h2</button>
                 <button onmousedown="event.preventDefault()" onclick="setHeading(3)">В h3</button>
                 <button onmousedown="event.preventDefault()" onclick="setHeading(4)">В h4</button>
                 <button onmousedown="event.preventDefault()" onclick="setHeading(5)">В h5</button>
-            </div>
-            <div class="buttons-row">
                 <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список в абзацы</button>   
                 <button onmousedown="event.preventDefault()" onclick="makeList('ul')">В список ul</button>
                 <button onmousedown="event.preventDefault()" onclick="makeList('ol')">В список ol</button>
          
             </div>
             <h3>Ссылки:</h3>
-            <div class="buttons-row buttons-row-2-items">
+            <div class="buttons-row">
                 <button onmousedown="event.preventDefault()" onclick="addLinkAttr('target')">target="_blank"</button>
                 <button onmousedown="event.preventDefault()" onclick="addLinkAttr('rel')">noindex nofollow</button>
-            </div>
-            <div class="buttons-row buttons-row-2-items">
                 <button onmousedown="event.preventDefault()" onclick="convertUrlsToLinks()">Авто-ссылки (URL, Email)</button>
                 <button onmousedown="event.preventDefault()" onclick="convertPhonesToLinks()">Превратить телефоны в ссылки</button>
             </div>
@@ -212,20 +286,39 @@
                            .replace(/>/g, "&gt;")
                            .replace(/"/g, "&quot;");
 
+            const query = document.getElementById('searchInput').value;
+            if (query && query.length > 0) {
+                const escapedQuery = query.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                
+                const re = new RegExp(escapedQuery.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
+                
+                let matchIndex = 0;
+                html = html.replace(re, (match) => {
+                    const isCurrent = (matchIndex === currentSearchIdx);
+                    matchIndex++;
+                    const className = isCurrent ? 'search-hl current' : 'search-hl';
+                    return `<span class="${className}">${match}</span>`;
+                });
+            }
+
             html = html.replace(/(&lt;strong&gt;)([\s\S]*?)(&lt;\/strong&gt;)/gi, '$1<span class="hl-bold">$2</span>$3');
-
             html = html.replace(/(&lt;\/?[a-z1-6]+[\s\S]*?&gt;)/gi, '<span class="hl-tag">$1</span>');
-
             html = html.replace(/(\s+)([a-z-]+)(=&quot;[\s\S]*?&quot;)/gi, '$1<span class="hl-attr">$2</span>$3');
 
             return html;
         }
 
         function updateView() {
-            const text = outputDiv.innerText;
-            const caretPos = getCaretPosition(outputDiv);
-            outputDiv.innerHTML = highlight(text); 
-            restoreCaretPosition(outputDiv, caretPos); 
+            const text = outputDiv.innerText;          
+            const isEditorFocused = document.activeElement === outputDiv;
+
+            if (isEditorFocused) {
+                const caretPos = getCaretPosition(outputDiv);
+                outputDiv.innerHTML = highlight(text); 
+                restoreCaretPosition(outputDiv, caretPos); 
+            } else {
+                outputDiv.innerHTML = highlight(text);
+            }
         }
 
         function getCaretPosition(element) {
@@ -846,6 +939,67 @@
         });
 
         saveState();
+
+        let searchResults = [];
+        let currentSearchIdx = -1;
+
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+            const text = outputDiv.innerText.toLowerCase();
+            searchResults = [];
+            
+            if (query.length > 0) {
+                let pos = text.indexOf(query);
+                while (pos !== -1) {
+                    searchResults.push(pos);
+                    pos = text.indexOf(query, pos + query.length);
+                }
+            }
+
+            currentSearchIdx = searchResults.length > 0 ? 0 : -1;
+
+            updateView();
+            updateSearchStatus();
+            scrollToCurrentMatch();
+        });
+
+        function searchNext() {
+            if (searchResults.length === 0) return;
+            currentSearchIdx = (currentSearchIdx + 1) % searchResults.length;
+            updateView();
+            updateSearchStatus();
+            scrollToCurrentMatch();
+        }
+
+        function searchPrev() {
+            if (searchResults.length === 0) return;
+            currentSearchIdx = (currentSearchIdx - 1 + searchResults.length) % searchResults.length;
+            updateView();
+            updateSearchStatus();
+            scrollToCurrentMatch();
+        }
+
+        function updateSearchStatus() {
+            const status = document.getElementById('searchStatus');
+            if (searchResults.length === 0) {
+                status.innerText = "0/0";
+            } else {
+                status.innerText = (currentSearchIdx + 1) + "/" + searchResults.length;
+            }
+        }
+
+        function scrollToCurrentMatch() {
+            setTimeout(() => {
+                const currentEl = outputDiv.querySelector('.search-hl.current');
+                if (currentEl) {
+                    currentEl.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'center',
+                        inline: 'nearest' 
+                    });
+                }
+            }, 10);
+        }
 
     </script>
 </body>
