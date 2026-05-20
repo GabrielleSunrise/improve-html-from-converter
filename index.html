@@ -434,10 +434,15 @@
 
             body.querySelectorAll('meta, link, style, script, title').forEach(el => el.remove());
 
+            const fonts = body.querySelectorAll('font');
+            fonts.forEach(el => {
+                el.replaceWith(...el.childNodes);
+            });
+
             const wrappers = body.querySelectorAll('span, b, strong, em, i');
             wrappers.forEach(el => {
                 const hasBlock = el.querySelector('p, h1, h2, h3, h4, h5, h6, ul, ol, li, div');
-                if (el.tagName === 'SPAN' || hasBlock) {
+                if (el.tagName === 'SPAN' || el.tagName === 'FONT' || hasBlock) {
                     el.replaceWith(...el.childNodes);
                 }
             });
