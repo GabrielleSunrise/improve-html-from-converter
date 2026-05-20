@@ -756,17 +756,23 @@
             saveState();
             let text = outputDiv.innerText;
 
-            const combinedRegex = /<a\b[^>]*>[\s\S]*?<\/a>|(<[^>]+>)|((?:\+7|8)[\s\-\(]*\d{3}[\s\-\)]*\d{3}[\s\-]*\d{2}[\s\-]*\d{2})/gi;
+            const combinedRegex = /<a\b[^>]*>[\s\S]*?<\/a>|(<[^>]+>)|(?<!\d)((?:\+7|8)[\s\xA0\-\(]*\d{3}[\s\xA0\-\)]*\d{3}[\s\xA0\-]*\d{2}[\s\xA0\-]*\d{2})(?!\d)/gi;
 
-            let result = text.replace(combinedRegex, (match, anyTag, content, phone) => {
-                if (match.startsWith('<')) {
-                    return match;
-                }
+            let result = text.replace(combinedRegex, (match, tag, phone) => {
+                if (match.toLowerCase().startsWith('<a')) return match;
+                if (tag) return tag;
+
                 if (phone) {
-                    let cleanNumber = phone.replace(/[^\d+]/g, '');
+                    let cleanNumber = phone.replace(/[^\d]/g, '');
+                    
                     if (cleanNumber.startsWith('8')) {
                         cleanNumber = '+7' + cleanNumber.substring(1);
                     }
+
+                    if (cleanNumber.length !== 11 && !cleanNumber.startsWith('+')) {
+                         return match; 
+                    }
+
                     return `<a href="tel:${cleanNumber}">${phone}</a>`;
                 }
                 return match;
