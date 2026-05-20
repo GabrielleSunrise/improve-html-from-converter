@@ -215,7 +215,7 @@
 
         <div>
             <label for="inputHtml">Вставьте текст:</label>
-            <textarea id="inputHtml" rows="10" placeholder="Вставьте сюда ваш текст или HTML-код..."></textarea>
+            <textarea id="inputHtml" rows="10" placeholder="Вставьте сюда ваш HTML-код..."></textarea>
         </div>
         
         <div class="buttons in-col">
@@ -249,6 +249,9 @@
                 <button id="cleanEntitiesOnly">Удалить спецсимволы</button> 
                 <button onmousedown="event.preventDefault()" onclick="makeBold()">Сделать жирным</button>
                 <button onmousedown="event.preventDefault()" onclick="makeNotBold()">Сделать не жирным</button>
+                <button onmousedown="event.preventDefault()" onclick="convertToSentenceCase()">Первая заглавная, остальные строчные</button>
+                <button onmousedown="event.preventDefault()" onclick="convertToLower()">Нижний регистр</button>
+                <button onmousedown="event.preventDefault()" onclick="convertToUpper()">Верхний регистр</button>
             </div>
             <h3>Превращения:</h3>
             <div class="buttons-row">
@@ -256,6 +259,7 @@
                 <button onmousedown="event.preventDefault()" onclick="setHeading(3)">В h3</button>
                 <button onmousedown="event.preventDefault()" onclick="setHeading(4)">В h4</button>
                 <button onmousedown="event.preventDefault()" onclick="setHeading(5)">В h5</button>
+                <button onmousedown="event.preventDefault()" onclick="setHeading(6)">В h6</button>
                 <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список в абзацы</button>   
                 <button onmousedown="event.preventDefault()" onclick="makeList('ul')">В список ul</button>
                 <button onmousedown="event.preventDefault()" onclick="makeList('ol')">В список ol</button>
@@ -569,6 +573,7 @@
             updateView(); 
             saveState();
         }
+
         function setHeading(level) {
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.toString().trim() === "") {
@@ -688,6 +693,7 @@
                 replaceSelectionWithText(matches.join('\n'));
             }
         }
+
         document.getElementById('cleanEntitiesOnly').addEventListener('click', function() {
             saveState();
             let text = outputDiv.innerText;
@@ -726,6 +732,62 @@
             const selectedText = selection.toString();
             const newText = selectedText.replace(/<\/?strong>/gi, '');
             replaceSelectionWithText(newText);
+        }
+
+        function transformSelection(transformationType) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount || selection.toString().trim() === "") return;
+
+            const selectedText = selection.toString();
+            
+            const tagOrTextRegex = /(<[^>]+>)|([^<]+)/g;
+            
+            let isFirstLetterHandled = false;
+
+            const newText = selectedText.replace(tagOrTextRegex, (match, tag, text) => {
+                if (tag) {
+                    return tag;
+                }
+                
+                if (text) {
+                    switch (transformationType) {
+                        case 'lowercase':
+                            return text.toLowerCase();
+                        
+                        case 'uppercase':
+                            return text.toUpperCase();
+                        
+                        case 'capitalize':
+                            let lower = text.toLowerCase();
+                            if (!isFirstLetterHandled) {
+                                return lower.replace(/[a-zа-яё]/i, (letter) => {
+                                    isFirstLetterHandled = true;
+                                    return letter.toUpperCase();
+                                });
+                            }
+                            return lower;
+                        
+                        default:
+                            return text;
+                    }
+                }
+                return match;
+            });
+
+            replaceSelectionWithText(newText);
+            if (typeof updateView === 'function') updateView();
+        }
+
+        function convertToLower() {
+            transformSelection('lowercase');
+        }
+
+        function convertToUpper() {
+            transformSelection('uppercase');
+        }
+
+        function convertToSentenceCase() {
+            transformSelection('capitalize');
         }
 
         function convertUrlsToLinks() {
