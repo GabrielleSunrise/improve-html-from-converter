@@ -261,6 +261,12 @@
             margin-bottom: 10px;
         }
 
+        .desc {
+            text-align: center;
+            line-height: 1.5;
+            margin-bottom: 40px;
+        }
+
         @media (max-width: 900px) {
             .editor-main {
                 width: 100%;
@@ -280,8 +286,12 @@
 
     <div class="container">
         <h1>Конвертер текста в html + редактор</h1>
-        <p><small>*Нахожусь в процессе тестирования и доработки, отдельные функции могут работать не совсем так, как от них ожидается</small></p>
-        <br>
+        <div class="desc">
+            <p>Привет!<p> 
+            <p>Меня создали для того, чтобы быстро и удобно конвертировать длинные тексты с неидеальным форматированием в подходящий для публикации на сайте формат. Текст нужно вставить именно в верхнее поле, затем нажать одну из кнопок ниже, в зависимости от задачи. Исходником может быть HTML-код из стороннего редактора либо непосредственно содержимое документа из Google Docs/Word/LibreOffice и т.п. При вставке из текстового файла в поле отобразится множество лишних тегов. Не пугаемся, жмём большую яркую кнопку конвертации и смотрим на результат :)</p>
+            <p>После того как текст отправлен в поле "Результат", его можно редактировать, используя кнопки в правой части страницы, а также вручную.</p>
+            <p>В настоящее время я нахожусь в процессе тестирования и доработки, поэтому отдельные функции могут работать не совсем так, как от них ожидается.</p>
+        </div>
 
         <div>
             <label for="inputHtml">Вставьте текст:</label>
@@ -894,16 +904,38 @@
         function makeBold() {
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.toString().trim() === "") return;
-            const selectedText = selection.toString();
-            replaceSelectionWithText(`<strong>${selectedText}</strong>`);
+
+            let selectedText = selection.toString().trim();
+            saveState();
+
+            const blockRegex = /^<(p|h[1-6]|div|li)[^>]*>([\s\S]*?)<\/\1>$/i;
+
+            let result;
+            if (blockRegex.test(selectedText)) {
+                result = selectedText.replace(blockRegex, (match, tagName, content) => {
+                    const openingTag = match.match(/^<[^>]+>/)[0];
+                    const closingTag = `</${tagName}>`;
+                    return `${openingTag}<strong>${content}</strong>${closingTag}`;
+                });
+            } else {
+                result = `<strong>${selectedText}</strong>`;
+            }
+
+            replaceSelectionWithText(result);
+            updateView();
         }
 
         function makeNotBold() {
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.toString().trim() === "") return;
+
             const selectedText = selection.toString();
-            const newText = selectedText.replace(/<\/?strong>/gi, '');
-            replaceSelectionWithText(newText);
+            saveState();
+
+            const result = selectedText.replace(/<\/?(strong|b)\b[^>]*>/gi, '');
+
+            replaceSelectionWithText(result);
+            updateView();
         }
 
         function transformSelection(transformationType) {
