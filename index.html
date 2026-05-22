@@ -336,6 +336,7 @@
                     <div class="buttons-row">
                         <button onmousedown="event.preventDefault()" onclick="insertImageBlock()">Вставить абзац с img</button>
                         <button id="cleanEntitiesOnly">Удалить спецсимволы</button> 
+                        <button onmousedown="event.preventDefault()" onclick="removeSelectedTagGlobally()">Удалить выделенный тег везде</button>
                     </div>
 
                     <h3>Превращения:</h3>
@@ -349,8 +350,7 @@
                         <button onmousedown="event.preventDefault()" onclick="makeList('ol')">В список ol</button>
                         <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список в абзацы</button>
                         <button onmousedown="event.preventDefault()" onclick="convertToParagraph()">Заголовок, div или цитату в абзац</button>
-                        <button onmousedown="event.preventDefault()" onclick="setLink()">Объект/текст в ссылку</button>
-                        <button onmousedown="event.preventDefault()" onclick="removeLink()">Убрать ссылку</button>
+                        <button onmousedown="event.preventDefault()" onclick="wrapInParagraph()">Кусок текста в абзац</button>
                     </div>
                     <h3>Текст:</h3>
                     <div class="buttons-row">
@@ -366,6 +366,8 @@
                         <button onmousedown="event.preventDefault()" onclick="addLinkAttr('both')">target="_blank" noindex nofollow</button>
                         <button onmousedown="event.preventDefault()" onclick="addLinkAttr('target')">target="_blank"</button>
                         <button onmousedown="event.preventDefault()" onclick="addLinkAttr('rel')">noindex nofollow</button>
+                        <button onmousedown="event.preventDefault()" onclick="setLink()">Объект/текст в ссылку</button>
+                        <button onmousedown="event.preventDefault()" onclick="removeLink()">Убрать ссылку</button>
                         <button onmousedown="event.preventDefault()" onclick="convertUrlsToLinks()">Авто-ссылки (URL)</button>
                         <button onmousedown="event.preventDefault()" onclick="convertPhonesToLinks()">Телефоны в ссылки</button>
                     </div>
@@ -671,6 +673,37 @@
             saveState();
         }
 
+        function removeSelectedTagGlobally() {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+
+            const tagMatch = selectedText.match(/<\/??([a-z1-6]+)/i);
+
+            if (!tagMatch) {
+                alert("В выделенном фрагменте не найдено ни одного тега.");
+                return;
+            }
+
+            const tagName = tagMatch[1];
+
+            saveState();
+
+            let currentHtml = outputDiv.innerText;
+
+            const openingTagRegex = new RegExp(`<${tagName}(\\s+[^>]*?)?>`, 'gi');
+            const closingTagRegex = new RegExp(`</${tagName}>`, 'gi');
+            const selfClosingRegex = new RegExp(`<${tagName}(\\s+[^>]*?)?/>`, 'gi');
+
+            const newHtml = currentHtml
+                .replace(openingTagRegex, '')
+                .replace(closingTagRegex, '')
+                .replace(selfClosingRegex, '');
+
+            outputDiv.innerText = newHtml;
+            
+            if (typeof updateView === 'function') updateView();
+        }
+
         function setHeading(level) {
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.toString().trim() === "") {
@@ -874,6 +907,24 @@
             } else {
                 alert("Выделите заголовок, div или цитату, чтобы превратить их в абзац.");
             }
+        }
+
+        function wrapInParagraph() {
+            const selection = window.getSelection();
+            const selectedText = selection.toString();
+
+            if (selectedText.trim() === "") {
+                alert("Выделите текст, который хотите обернуть в абзац <p>");
+                return;
+            }
+
+            saveState();
+
+            const result = `<p>${selectedText}</p>`;
+
+            replaceSelectionWithText(result);
+            
+            if (typeof updateView === 'function') updateView();
         }
 
         document.getElementById('cleanEntitiesOnly').addEventListener('click', function() {
