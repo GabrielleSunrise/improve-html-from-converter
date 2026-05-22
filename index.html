@@ -250,7 +250,7 @@
         }
 
         .editor-sidebar .buttons-row button {
-            padding: 8px 12px;
+            padding: 6px 11px;
             font-size: 0.9em;
         }
 
@@ -288,7 +288,7 @@
         <h1>Конвертер текста в html + редактор</h1>
         <div class="desc">
             <p>Привет!<p> 
-            <p>Меня создали для того, чтобы быстро и удобно конвертировать длинные тексты с неидеальным форматированием в подходящий для публикации на сайте формат. Текст нужно вставить именно в верхнее поле, затем нажать одну из кнопок ниже, в зависимости от задачи. Исходником может быть HTML-код из стороннего редактора либо непосредственно содержимое документа из Google Docs/Word/LibreOffice и т.п. При вставке из текстового файла в поле отобразится множество лишних тегов. Не пугаемся, жмём большую яркую кнопку конвертации и смотрим на результат :)</p>
+            <p>Меня создали, чтобы быстро и удобно конвертировать длинные тексты с неидеальным форматированием в подходящий для публикации на сайте формат. Текст нужно вставить именно в верхнее поле, затем нажать одну из кнопок ниже, в зависимости от задачи. Исходником может быть HTML-код из стороннего редактора либо непосредственно содержимое документа из Google Docs/Word/LibreOffice и т.п. При вставке из текстового файла в поле отобразится множество лишних тегов. Не пугаемся, жмём большую яркую кнопку конвертации и смотрим на результат :)</p>
             <p>После того как текст отправлен в поле "Результат", его можно редактировать, используя кнопки в правой части страницы, а также вручную.</p>
             <p>В настоящее время я нахожусь в процессе тестирования и доработки, поэтому отдельные функции могут работать не совсем так, как от них ожидается.</p>
         </div>
@@ -332,11 +332,13 @@
                 </div>
 
                 <div class="editor-sidebar">
-                    <h2>Инструменты без категории:</h2>
+                    <h2>Для всего текста:</h2>
                     <div class="buttons-row">
-                        <button onmousedown="event.preventDefault()" onclick="insertImageBlock()">Вставить абзац с img</button>
                         <button id="cleanEntitiesOnly">Удалить спецсимволы</button> 
                         <button onmousedown="event.preventDefault()" onclick="removeSelectedTagGlobally()">Удалить выделенный тег везде</button>
+                        <button onmousedown="event.preventDefault()" onclick="makeEverythingRelative()">href ссылок и src картинок относительные</button>
+                        <button onmousedown="event.preventDefault()" onclick="makeTextLinksRelative()">href относительные</button>
+                        <button onmousedown="event.preventDefault()" onclick="makeImagesRelative()">src относительные</button>
                     </div>
 
                     <h3>Превращения:</h3>
@@ -370,6 +372,11 @@
                         <button onmousedown="event.preventDefault()" onclick="removeLink()">Убрать ссылку</button>
                         <button onmousedown="event.preventDefault()" onclick="convertUrlsToLinks()">Авто-ссылки (URL)</button>
                         <button onmousedown="event.preventDefault()" onclick="convertPhonesToLinks()">Телефоны в ссылки</button>
+                    </div>
+
+                    <h3>Без категории:</h3>
+                    <div class="buttons-row">
+                        <button onmousedown="event.preventDefault()" onclick="insertImageBlock()">Вставить абзац с img</button>
                     </div>
                 </div>
             </div>
@@ -1229,6 +1236,59 @@
             });
             
             replaceSelectionWithText(newText);
+        }
+
+        function getRelativePath(url) {
+            if (!url.startsWith('http')) return url;
+            
+            try {
+                const urlObj = new URL(url);
+                return urlObj.pathname + urlObj.search + urlObj.hash;
+            } catch (e) {
+                return url;
+            }
+        }
+
+        function makeTextLinksRelative() {
+            saveState();
+            let html = outputDiv.innerText;
+
+            const result = html.replace(/(<a\s+[^>]*href=["'])([^"']*)(["'][^>]*>)/gi, (match, start, url, end) => {
+                if (/^(mailto:|tel:|javascript:|#)/i.test(url)) {
+                    return match;
+                }
+                return start + getRelativePath(url) + end;
+            });
+
+            outputDiv.innerText = result;
+            if (typeof updateView === 'function') updateView();
+        }
+
+        function makeImagesRelative() {
+            saveState();
+            let html = outputDiv.innerText;
+
+            const result = html.replace(/(<img\s+[^>]*src=["'])([^"']*)(["'][^>]*>)/gi, (match, start, url, end) => {
+                return start + getRelativePath(url) + end;
+            });
+
+            outputDiv.innerText = result;
+            if (typeof updateView === 'function') updateView();
+        }
+
+        function makeEverythingRelative() {
+            saveState();
+            let html = outputDiv.innerText;
+
+            const result = html.replace(/(<(?:a|img)\s+[^>]*(?:href|src)=["'])([^"']*)(["'][^>]*>)/gi, (match, start, url, end) => {
+                if (/^(mailto:|tel:|javascript:|#)/i.test(url)) {
+                    return match;
+                }
+                return start + getRelativePath(url) + end;
+            });
+
+            outputDiv.innerText = result;
+            if (typeof updateView === 'function') updateView();
         }
 
         document.getElementById('copyFinalBtn').addEventListener('click', function() {
