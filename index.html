@@ -351,8 +351,10 @@
                         <button onmousedown="event.preventDefault()" onclick="makeList('ul')">В список ul</button>
                         <button onmousedown="event.preventDefault()" onclick="makeList('ol')">В список ol</button>
                         <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список в абзацы</button>
-                        <button onmousedown="event.preventDefault()" onclick="convertToParagraph()">Заголовок, div или цитату в абзац</button>
-                        <button onmousedown="event.preventDefault()" onclick="wrapInParagraph()">Кусок текста в абзац</button>
+                        <button onmousedown="event.preventDefault()" onclick="convertToParagraph()">Заголовок, div, цитату в абзац</button>
+                        <button onmousedown="event.preventDefault()" onclick="wrapInParagraph()">Текст в абзац</button>
+                        <button onmousedown="event.preventDefault()" onclick="convertUrlsToLinks()">URL в ссылки</button>
+                        <button onmousedown="event.preventDefault()" onclick="convertPhonesToLinks()">Телефоны в ссылки</button>
                     </div>
                     <h3>Текст:</h3>
                     <div class="buttons-row">
@@ -370,13 +372,12 @@
                         <button onmousedown="event.preventDefault()" onclick="addLinkAttr('rel')">noindex nofollow</button>
                         <button onmousedown="event.preventDefault()" onclick="setLink()">Объект/текст в ссылку</button>
                         <button onmousedown="event.preventDefault()" onclick="removeLink()">Убрать ссылку</button>
-                        <button onmousedown="event.preventDefault()" onclick="convertUrlsToLinks()">Авто-ссылки (URL)</button>
-                        <button onmousedown="event.preventDefault()" onclick="convertPhonesToLinks()">Телефоны в ссылки</button>
                     </div>
 
-                    <h3>Без категории:</h3>
+                    <h3>Картинки:</h3>
                     <div class="buttons-row">
                         <button onmousedown="event.preventDefault()" onclick="insertImageBlock()">Вставить абзац с img</button>
+                        <button onmousedown="event.preventDefault()" onclick="insertImageDiv()">Вставить div с img</button>
                     </div>
                 </div>
             </div>
@@ -648,6 +649,11 @@
 
         function insertImageBlock() {
             const imgTemplate = '\n<p>\n  <img src="" alt="">\n</p>\n';
+            replaceSelectionWithText(imgTemplate);
+        }
+
+        function insertImageDiv() {
+            const imgTemplate = '\n<div>\n  <img src="" alt="">\n</div>\n';
             replaceSelectionWithText(imgTemplate);
         }
 
