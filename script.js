@@ -6,11 +6,16 @@ let searchResults = [];
 let currentSearchIdx = -1;
 
 function escapeHtml(text) {
-    return text.replace(/&/g, '\x26amp;')
-        .replace(/</g, '\x26lt;')
-        .replace(/>/g, '\x26gt;')
-        .replace(/"/g, '\x26quot;')
-        .replace(/'/g, '\x26#039;');
+    return text.replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function isUnsafeUrl(url) {
+    const val = (url || '').trim().toLowerCase();
+    return val.startsWith('javascript:') || val.startsWith('data:') || val.startsWith('vbscript:');
 }
 
 function highlight(text) {
@@ -30,9 +35,9 @@ function highlight(text) {
         });
     }
 
-    html = html.replace(/(\x26lt;strong\x26gt;)([\s\S]*?)(\x26lt;\/strong\x26gt;)/gi, '$1<span class="hl-bold">$2</span>$3');
-    html = html.replace(/(\x26lt;\/?[a-z1-6]+[\s\S]*?\x26gt;)/gi, '<span class="hl-tag">$1</span>');
-    html = html.replace(/(\s+)([a-z-]+)(=\x26quot;[\s\S]*?\x26quot;)/gi, '$1<span class="hl-attr">$2</span>$3');
+    html = html.replace(/(&lt;strong&gt;)([\s\S]*?)(&lt;\/strong&gt;)/gi, '$1<span class="hl-bold">$2</span>$3');
+    html = html.replace(/(&lt;\/?[a-z1-6]+[\s\S]*?&gt;)/gi, '<span class="hl-tag">$1</span>');
+    html = html.replace(/(\s+)([a-z-]+)(=&quot;[\s\S]*?&quot;)/gi, '$1<span class="hl-attr">$2</span>$3');
     return html;
 }
 
@@ -149,11 +154,8 @@ function cleanHTML(htmlInput) {
             const isHref = (tagName === 'A' && attr.name === 'href');
             const isSrc = (tagName === 'IMG' && (attr.name === 'src' || attr.name === 'alt'));
 
-            if (isHref) {
-                const val = attr.value.trim().toLowerCase();
-                if (val.startsWith('javascript:') || val.startsWith('data:') || val.startsWith('vbscript:')) {
-                    el.setAttribute('href', '#');
-                }
+                if (isHref && isUnsafeUrl(attr.value)) {
+                el.setAttribute('href', '#');
             }
 
             if (!isHref && !isSrc) el.removeAttribute(attr.name);
@@ -165,7 +167,7 @@ function cleanHTML(htmlInput) {
                 try {
                     const urlObj = new URL(href);
                     const actualUrl = urlObj.searchParams.get('q');
-                    if (actualUrl) el.setAttribute('href', actualUrl);
+                    if (actualUrl && !isUnsafeUrl(actualUrl)) el.setAttribute('href', actualUrl);
                 } catch (e) {}
             }
         }
@@ -217,10 +219,28 @@ function cleanHTML(htmlInput) {
     return result.trim();
 }
 
+// Удаляет спецсимволы (неразрывные пробелы, тире, многоточия и т.п.)
+// Используется как отдельной кнопкой, так и автоматически при конвертации из Google Docs/Word
+function cleanEntities(text) {
+    const inlineTags = ['span', 'strong', 'b', 'a'];
+    let result = text.replace(/<\/([a-z1-6]+)>/gi, function(match, tagName) {
+        if (inlineTags.includes(tagName.toLowerCase())) {
+            return ' </' + tagName + '>';
+        }
+        return '</' + tagName + '>';
+    });
+    result = result.replace(/–|—/g, '\u2014');
+    result = result.replace(/…/g, '...');
+    result = result.replace(/&nbsp;/g, ' ');
+    result = result.replace(/[ ]{2,}/g, ' ');
+    return result;
+}
+
 document.getElementById('fromGoogleDocs').addEventListener('click', function() {
     const sourceText = inputTextArea.value;
     let cleanStructure = cleanHTML(sourceText);
     let finalHtml = cleanWordHtml(cleanStructure);
+    finalHtml = cleanEntities(finalHtml);
     outputDiv.innerText = finalHtml;
     updateView();
     saveState();
@@ -281,16 +301,6 @@ function insertTextAtCaret(newText) {
 
     saveState();
 
-    const dataTransfer = new DataTransfer();
-    dataTransfer.setData('text/plain', newText);
-
-    const event = new ClipboardEvent('paste', {
-        clipboardData: dataTransfer,
-        bubbles: true,
-        cancelable: true
-    });
-
-    const originalPasteHandler = outputDiv.onpaste;
     outputDiv.setAttribute('data-internal-insert', 'true');
 
     range.deleteContents();
@@ -356,59 +366,29 @@ function removeSelectedTagGlobally() {
     saveState();
 }
 
+function extractFullBlockTagContent(selectedText) {
+    const match = selectedText.match(/^<(p|div|li|h[1-6])(?:\s[^>]*)?>([\s\S]*)<\/\1>$/i);
+    if (!match) return null;
+    return match[2];
+}
+
 function setHeading(level) {
     const selection = window.getSelection();
     if (!selection.rangeCount || selection.toString().trim() === "") {
         alert("Выделите текст");
         return;
     }
-    let selectedText = selection.toString().trim();
-    if (!selectedText.startsWith('<') || !selectedText.endsWith('>')) {
-        alert("Нужно выделить строку целиком, вместе с тегами.\n\nНапример:\nВаш текст");
+    const selectedText = selection.toString().trim();
+    const targetTag = 'h' + level;
+
+    const innerContent = extractFullBlockTagContent(selectedText);
+    if (innerContent === null) {
+        alert("Нужно выделить тег целиком, вместе с содержимым.\n\nНапример:\n<p>Ваш текст</p>");
         return;
     }
+
     saveState();
-    const targetTag = 'h' + level;
-    selectedText = selectedText.replace(/<(?:p|h[1-6]|div)[^>]*>([\s\S]*?)<\/(?:p|h[1-6]|div)>/gi, '$1');
-    selectedText = selectedText.replace(/^<\/?[a-z1-6]+[^>]*>/i, '').replace(/<\/?[a-z1-6]+[^>]*>$/i, '');
-    const text = outputDiv.innerText;
-    const startIdx = getCaretPosition(outputDiv);
-    const endIdx = startIdx + selection.toString().length;
-    const leftText = text.substring(0, startIdx);
-    const rightText = text.substring(endIdx);
-    const tagStart = leftText.lastIndexOf('<');
-    const tagEndRel = rightText.indexOf('>');
-    const tagEnd = tagEndRel !== -1 ? endIdx + tagEndRel + 1 : -1;
-    let surroundingTagMatch = leftText.substring(tagStart).match(/^<([a-z1-6]+)/i);
-    let parentTagName = surroundingTagMatch ? surroundingTagMatch[1].toLowerCase() : null;
-    if (selection.toString().trim().match(/^<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>$/i)) {
-        const newHeader = '<' + targetTag + '>' + selectedText + '</' + targetTag + '>';
-        replaceSelectionWithText(newHeader);
-    } else if (parentTagName && /^h[1-6]$/.test(parentTagName)) {
-        const fullHeaderStart = tagStart;
-        const fullHeaderEnd = text.indexOf('</' + parentTagName + '>', startIdx) + parentTagName.length + 3;
-        const oldHeaderText = text.substring(fullHeaderStart, fullHeaderEnd).replace(/<[^>]+>/g, '');
-        const newHeader = '<' + targetTag + '>' + oldHeaderText + '</' + targetTag + '>';
-        setSelectionRange(outputDiv, fullHeaderStart, fullHeaderEnd);
-        replaceSelectionWithText(newHeader);
-    } else if (parentTagName === 'p' || parentTagName === 'li' || parentTagName === 'div') {
-        const pCloseIdx = text.indexOf('</' + parentTagName + '>', startIdx);
-        const textBefore = text.substring(tagStart, startIdx);
-        const textAfter = text.substring(endIdx, pCloseIdx + parentTagName.length + 3);
-        let result = "";
-        if (textBefore.includes('>') && textBefore.split('>')[1].trim() !== "") {
-            result += textBefore + '</' + parentTagName + '>\n';
-        }
-        result += '<' + targetTag + '>' + selectedText + '</' + targetTag + '>';
-        const afterContent = textAfter.substring(0, textAfter.lastIndexOf('<'));
-        if (afterContent.trim() !== "") {
-            result += '\n<' + parentTagName + '>' + afterContent + '</' + parentTagName + '>';
-        }
-        setSelectionRange(outputDiv, tagStart, pCloseIdx + parentTagName.length + 3);
-        replaceSelectionWithText(result);
-    } else {
-        replaceSelectionWithText('<' + targetTag + '>' + selectedText + '</' + targetTag + '>');
-    }
+    replaceSelectionWithText('<' + targetTag + '>' + innerContent + '</' + targetTag + '>');
     updateView();
 }
 
@@ -532,18 +512,7 @@ function wrapInParagraph() {
 
 document.getElementById('cleanEntitiesOnly').addEventListener('click', function() {
     saveState();
-    let text = outputDiv.innerText;
-    const inlineTags = ['span', 'strong', 'b', 'a'];
-    let result = text.replace(/<\/([a-z1-6]+)>/gi, function(match, tagName) {
-        if (inlineTags.includes(tagName.toLowerCase())) {
-            return ' </' + tagName + '>';
-        }
-        return '</' + tagName + '>';
-    });
-    result = result.replace(/–|—/g, '\u2014');
-    result = result.replace(/…/g, '...');
-    result = result.replace(/&nbsp;/g, ' ');
-    result = result.replace(/[ ]{2,}/g, ' ');
+    const result = cleanEntities(outputDiv.innerText);
     outputDiv.innerText = result;
     updateView();
     saveState();
@@ -629,7 +598,7 @@ function convertUrlsToLinks() {
         if (match.startsWith('<'))
             return match;
         if (url) {
-            const secureUrl = url.trim().toLowerCase().startsWith('javascript:') ? '#' : url;
+            const secureUrl = isUnsafeUrl(url) ? '#' : url;
             return '<a href="' + secureUrl + '">' + url + '</a>';
         }
         if (email) return '<a href="mailto:' + email + '">' + email + '</a>';
@@ -757,7 +726,7 @@ function addLinkAttr(type) {
         alert("В выделенном фрагменте не найден тег ");
         return;
     }
-    linkRegex.lastIndex = 0;
+        linkRegex.lastIndex = 0;
     let newText = selectedText.replace(linkRegex, function(match, attributes) {
         let updatedAttributes = attributes;
         if (type === 'target' || type === 'both') {
@@ -766,10 +735,23 @@ function addLinkAttr(type) {
             } else {
                 updatedAttributes += ' target="_blank"';
             }
+            if (updatedAttributes.includes('rel=')) {
+                if (!/noopener/i.test(updatedAttributes)) {
+                    updatedAttributes = updatedAttributes.replace(/rel="([^"]*)"/g, function(m, relVal) {
+                        return 'rel="' + (relVal.trim() + ' noopener').trim() + '"';
+                    });
+                }
+            } else {
+                updatedAttributes += ' rel="noopener"';
+            }
         }
         if (type === 'rel' || type === 'both') {
             if (updatedAttributes.includes('rel=')) {
-                updatedAttributes = updatedAttributes.replace(/rel="[^"]*"/g, 'rel="nofollow noindex"');
+                updatedAttributes = updatedAttributes.replace(/rel="([^"]*)"/g, function(m, relVal) {
+                    const hasNoopener = /noopener/i.test(relVal);
+                    const base = 'nofollow noindex';
+                    return 'rel="' + (hasNoopener ? base + ' noopener' : base) + '"';
+                });
             } else {
                 updatedAttributes += ' rel="nofollow noindex"';
             }
@@ -778,6 +760,7 @@ function addLinkAttr(type) {
         return '<a ' + updatedAttributes + '>';
     });
 
+    saveState();
     replaceSelectionWithText(newText);
 }
 
@@ -825,13 +808,17 @@ function makeEverythingRelative() {
 
 document.getElementById('copyFinalBtn').addEventListener('click', function() {
     const text = outputDiv.innerText.replace(/\u200B/g, '').trim();
+    const button = this;
+    const originalText = button.innerText;
     navigator.clipboard.writeText(text).then(function() {
-        const originalText = this.innerText;
-        this.innerText = 'Скопировано!';
+        button.innerText = 'Скопировано!';
         setTimeout(function() {
-            this.innerText = originalText;
-        }.bind(this), 2000);
-    }.bind(this));
+            button.innerText = originalText;
+        }, 2000);
+    }).catch(function(err) {
+        console.error('Не удалось скопировать текст:', err);
+        alert('Не удалось скопировать текст. Возможно, страница открыта не по HTTPS.');
+    });
 });
 
 outputDiv.addEventListener('keydown', function(e) {
@@ -914,4 +901,70 @@ function scrollToCurrentMatch() {
         }
     }, 10);
 }
+
+document.addEventListener('keydown', function(e) {
+    const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+    if (isCtrlOrCmd && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        undo();
+    }
+});
+
+document.getElementById('searchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        searchPrev();
+    } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        searchNext();
+    }
+});
+
+document.getElementById('undoBtn').addEventListener('mousedown', function(e) { e.preventDefault(); });
+document.getElementById('undoBtn').addEventListener('click', undo);
+
+document.getElementById('searchPrevBtn').addEventListener('mousedown', function(e) { e.preventDefault(); });
+document.getElementById('searchPrevBtn').addEventListener('click', searchPrev);
+document.getElementById('searchNextBtn').addEventListener('mousedown', function(e) { e.preventDefault(); });
+document.getElementById('searchNextBtn').addEventListener('click', searchNext);
+
+function bindButton(id, handler) {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('mousedown', function(e) { e.preventDefault(); });
+    btn.addEventListener('click', handler);
+}
+
+bindButton('removeTagBtn', removeSelectedTagGlobally);
+bindButton('makeEverythingRelativeBtn', makeEverythingRelative);
+bindButton('makeTextLinksRelativeBtn', makeTextLinksRelative);
+bindButton('makeImagesRelativeBtn', makeImagesRelative);
+
+bindButton('headingH2Btn', function() { setHeading(2); });
+bindButton('headingH3Btn', function() { setHeading(3); });
+bindButton('headingH4Btn', function() { setHeading(4); });
+bindButton('headingH5Btn', function() { setHeading(5); });
+bindButton('headingH6Btn', function() { setHeading(6); });
+bindButton('makeListUlBtn', function() { makeList('ul'); });
+bindButton('makeListOlBtn', function() { makeList('ol'); });
+bindButton('listToParagraphsBtn', listToParagraphs);
+bindButton('convertToParagraphBtn', convertToParagraph);
+bindButton('wrapInParagraphBtn', wrapInParagraph);
+bindButton('convertUrlsToLinksBtn', convertUrlsToLinks);
+bindButton('convertPhonesToLinksBtn', convertPhonesToLinks);
+
+bindButton('makeBoldBtn', makeBold);
+bindButton('makeNotBoldBtn', makeNotBold);
+bindButton('sentenceCaseBtn', convertToSentenceCase);
+bindButton('lowerCaseBtn', convertToLower);
+bindButton('upperCaseBtn', convertToUpper);
+
+bindButton('linkAttrBothBtn', function() { addLinkAttr('both'); });
+bindButton('linkAttrTargetBtn', function() { addLinkAttr('target'); });
+bindButton('linkAttrRelBtn', function() { addLinkAttr('rel'); });
+bindButton('setLinkBtn', setLink);
+bindButton('removeLinkBtn', removeLink);
+
+bindButton('insertImageBlockBtn', insertImageBlock);
+bindButton('insertImageDivBtn', insertImageDiv);
 

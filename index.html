@@ -1,115 +1,115 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Конвертер текста в html + редактор</title>
-    <meta name="description" content="Конвертирует текст из Google Docs / MS Word / LibreOffice и других редакторов в HTML. Позволяет изменять теги и дорабатывать результат.">
-    <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    
-    <div class="container">
-        <h1>Конвертер текста в html + редактор</h1>
-        <div class="desc">
-            <p>Привет!</p>
-            <p>Меня создали, чтобы быстро и удобно конвертировать длинные тексты с неидеальным форматированием в подходящий для публикации на сайте формат. Текст нужно вставить именно в верхнее поле, затем нажать одну из кнопок ниже, в зависимости от задачи. Исходником может быть HTML-код из стороннего редактора либо непосредственно содержимое документа из Google Docs/Word/LibreOffice и т.п. При вставке из текстового файла в поле отобразится множество лишних тегов. Не пугаемся, жмём большую яркую кнопку конвертации и смотрим на результат :)</p>
-            <p>После того как текст отправлен в поле "Результат", его можно редактировать, используя кнопки в правой части страницы, а также вручную.</p>
-        </div>
-
-        <div>
-            <label for="inputHtml">Вставьте текст:</label>
-            <textarea id="inputHtml" rows="10" placeholder="Вставьте сюда ваш текст или HTML-код..."></textarea>
-        </div>
-
-        <div class="buttons in-col">
-            <button id="fromGoogleDocs" class="blue">Конвертировать из Google Docs/Word и т.п.</button>
-        </div>
-        <div class="buttons in-col">
-            <button id="cleanButton">Заменить спецсимволы, кавычки на ёлочки, превратить h1 в h2</button>
-        </div>
-        <div class="buttons">
-            <button id="pasteToResult">Отправить в "Результат" как есть для редактирования</button>
-        </div>
-
-        <div>
-
-            <div class="editor-layout">
-                <div class="editor-main">
-                    <div class="result-header">
-                        <label for="outputCleaned">Результат:</label>
-                        <button onmousedown="event.preventDefault()" onclick="undo()" class="purple undo-btn">↩ Галя, отмена</button>
-                    </div>
-                    <div id="outputCleaned" contenteditable="true" spellcheck="false"></div>
-
-                    <div class="search-bar">
-                        <input type="text" id="searchInput" placeholder="Поиск в коде" title="Введите текст для поиска">
-                        <div class="search-controls">
-                            <span id="searchStatus">0/0</span>
-                            <button class="search-btn" onmousedown="event.preventDefault()" onclick="searchPrev()" title="Предыдущее">▲</button>
-                            <button class="search-btn" onmousedown="event.preventDefault()" onclick="searchNext()" title="Следующее">▼</button>
-                        </div>
-                    </div>
-
-                    <button id="copyFinalBtn" class="green">Скопировать результат</button>
-
-                </div>
-
-                <div class="editor-sidebar">
-                    <h2>Для всего текста:</h2>
-                    <div class="buttons-row">
-                        <button id="cleanEntitiesOnly">Удалить спецсимволы</button>
-                        <button onmousedown="event.preventDefault()" onclick="removeSelectedTagGlobally()">Удалить выделенный тег везде</button>
-                        <button onmousedown="event.preventDefault()" onclick="makeEverythingRelative()">href ссылок и src картинок относительные</button>
-                        <button onmousedown="event.preventDefault()" onclick="makeTextLinksRelative()">href относительные</button>
-                        <button onmousedown="event.preventDefault()" onclick="makeImagesRelative()">src относительные</button>
-                    </div>
-
-                    <h3>Превращения:</h3>
-                    <div class="buttons-row">
-                        <button onmousedown="event.preventDefault()" onclick="setHeading(2)">В h2</button>
-                        <button onmousedown="event.preventDefault()" onclick="setHeading(3)">В h3</button>
-                        <button onmousedown="event.preventDefault()" onclick="setHeading(4)">В h4</button>
-                        <button onmousedown="event.preventDefault()" onclick="setHeading(5)">В h5</button>
-                        <button onmousedown="event.preventDefault()" onclick="setHeading(6)">В h6</button>
-                        <button onmousedown="event.preventDefault()" onclick="makeList('ul')">В список ul</button>
-                        <button onmousedown="event.preventDefault()" onclick="makeList('ol')">В список ol</button>
-                        <button onmousedown="event.preventDefault()" onclick="listToParagraphs()">Список в абзацы</button>
-                        <button onmousedown="event.preventDefault()" onclick="convertToParagraph()">Заголовок, div, цитату в абзац</button>
-                        <button onmousedown="event.preventDefault()" onclick="wrapInParagraph()">Текст в абзац</button>
-                        <button onmousedown="event.preventDefault()" onclick="convertUrlsToLinks()">URL в ссылки</button>
-                        <button onmousedown="event.preventDefault()" onclick="convertPhonesToLinks()">Телефоны в ссылки</button>
-                    </div>
-                    <h3>Текст:</h3>
-                    <div class="buttons-row">
-                        <button onmousedown="event.preventDefault()" onclick="makeBold()">Сделать жирным</button>
-                        <button onmousedown="event.preventDefault()" onclick="makeNotBold()">Сделать не жирным</button>
-                        <button onmousedown="event.preventDefault()" onclick="convertToSentenceCase()">Первая заглавная, остальные строчные</button>
-                        <button onmousedown="event.preventDefault()" onclick="convertToLower()">Нижний регистр</button>
-                        <button onmousedown="event.preventDefault()" onclick="convertToUpper()">Верхний регистр</button>
-                    </div>
-
-                    <h3>Ссылки:</h3>
-                    <div class="buttons-row">
-                        <button onmousedown="event.preventDefault()" onclick="addLinkAttr('both')">target="_blank" noindex nofollow</button>
-                        <button onmousedown="event.preventDefault()" onclick="addLinkAttr('target')">target="_blank"</button>
-                        <button onmousedown="event.preventDefault()" onclick="addLinkAttr('rel')">noindex nofollow</button>
-                        <button onmousedown="event.preventDefault()" onclick="setLink()">Объект/текст в ссылку</button>
-                        <button onmousedown="event.preventDefault()" onclick="removeLink()">Убрать ссылку</button>
-                    </div>
-
-                    <h3>Картинки:</h3>
-                    <div class="buttons-row">
-                        <button onmousedown="event.preventDefault()" onclick="insertImageBlock()">Вставить абзац с img</button>
-                        <button onmousedown="event.preventDefault()" onclick="insertImageDiv()">Вставить div с img</button>
-                    </div>
-                </div>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Конвертер текста в html + редактор</title>
+        <meta name="description" content="Конвертирует текст из Google Docs / MS Word / LibreOffice и других редакторов в HTML. Позволяет изменять теги и дорабатывать результат.">
+        <link rel="icon" type="image/svg+xml" href="favicon.svg">
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        
+        <div class="container">
+            <h1>Конвертер текста в html + редактор</h1>
+            <div class="desc">
+                <p>Привет!</p>
+                <p>Меня создали, чтобы быстро и удобно конвертировать длинные тексты с неидеальным форматированием в подходящий для публикации на сайте формат. Текст нужно вставить именно в верхнее поле, затем нажать одну из кнопок ниже, в зависимости от задачи. Исходником может быть HTML-код из стороннего редактора либо непосредственно содержимое документа из Google Docs/Word/LibreOffice и т.п. При вставке из текстового файла в поле отобразится множество лишних тегов. Не пугаемся, жмём большую яркую кнопку конвертации и смотрим на результат :)</p>
+                <p>После того как текст отправлен в поле "Результат", его можно редактировать, используя кнопки в правой части страницы, а также вручную.</p>
             </div>
 
-        </div>
-    </div>
+            <div>
+                <label for="inputHtml">Вставьте текст:</label>
+                <textarea id="inputHtml" rows="10" placeholder="Вставьте сюда ваш текст или HTML-код..."></textarea>
+            </div>
 
-    <script src="script.js"></script>
-</body>
+            <div class="buttons in-col">
+                <button id="fromGoogleDocs" class="blue">Конвертировать из Google Docs/Word и т.п.</button>
+            </div>
+            <div class="buttons in-col">
+                <button id="cleanButton">Заменить спецсимволы, кавычки на ёлочки, превратить h1 в h2</button>
+            </div>
+            <div class="buttons">
+                <button id="pasteToResult">Отправить в "Результат" как есть для редактирования</button>
+            </div>
+
+            <div>
+
+                <div class="editor-layout">
+                    <div class="editor-main">
+                        <div class="result-header">
+                            <label for="outputCleaned">Результат:</label>
+                            <button id="undoBtn" class="purple undo-btn">↩ Галя, отмена</button>
+                        </div>
+                        <div id="outputCleaned" contenteditable="true" spellcheck="false"></div>
+
+                        <div class="search-bar">
+                            <input type="text" id="searchInput" placeholder="Поиск в коде" title="Введите текст для поиска">
+                            <div class="search-controls">
+                                <span id="searchStatus">0/0</span>
+                                <button id="searchPrevBtn" class="search-btn" title="Предыдущее">▲</button>
+                                <button id="searchNextBtn" class="search-btn" title="Следующее">▼</button>
+                            </div>
+                        </div>
+
+                        <button id="copyFinalBtn" class="green">Скопировать результат</button>
+
+                    </div>
+
+                    <div class="editor-sidebar">
+                        <h2>Для всего текста:</h2>
+                        <div class="buttons-row">
+                            <button id="cleanEntitiesOnly">Удалить спецсимволы</button>
+                            <button id="removeTagBtn">Удалить выделенный тег везде</button>
+                            <button id="makeEverythingRelativeBtn">href ссылок и src картинок относительные</button>
+                            <button id="makeTextLinksRelativeBtn">href относительные</button>
+                            <button id="makeImagesRelativeBtn">src относительные</button>
+                        </div>
+
+                        <h3>Превращения:</h3>
+                        <div class="buttons-row">
+                            <button id="headingH2Btn" data-level="2">В h2</button>
+                            <button id="headingH3Btn" data-level="3">В h3</button>
+                            <button id="headingH4Btn" data-level="4">В h4</button>
+                            <button id="headingH5Btn" data-level="5">В h5</button>
+                            <button id="headingH6Btn" data-level="6">В h6</button>
+                            <button id="makeListUlBtn">В список ul</button>
+                            <button id="makeListOlBtn">В список ol</button>
+                            <button id="listToParagraphsBtn">Список в абзацы</button>
+                            <button id="convertToParagraphBtn">Заголовок, div, цитату в абзац</button>
+                            <button id="wrapInParagraphBtn">Текст в абзац</button>
+                            <button id="convertUrlsToLinksBtn">URL в ссылки</button>
+                            <button id="convertPhonesToLinksBtn">Телефоны в ссылки</button>
+                        </div>
+                        <h3>Текст:</h3>
+                        <div class="buttons-row">
+                            <button id="makeBoldBtn">Сделать жирным</button>
+                            <button id="makeNotBoldBtn">Сделать не жирным</button>
+                            <button id="sentenceCaseBtn">Первая заглавная, остальные строчные</button>
+                            <button id="lowerCaseBtn">Нижний регистр</button>
+                            <button id="upperCaseBtn">Верхний регистр</button>
+                        </div>
+
+                        <h3>Ссылки:</h3>
+                        <div class="buttons-row">
+                            <button id="linkAttrBothBtn" data-type="both">target="_blank" noindex nofollow</button>
+                            <button id="linkAttrTargetBtn" data-type="target">target="_blank"</button>
+                            <button id="linkAttrRelBtn" data-type="rel">noindex nofollow</button>
+                            <button id="setLinkBtn">Объект/текст в ссылку</button>
+                            <button id="removeLinkBtn">Убрать ссылку</button>
+                        </div>
+
+                        <h3>Картинки:</h3>
+                        <div class="buttons-row">
+                            <button id="insertImageBlockBtn">Вставить абзац с img</button>
+                            <button id="insertImageDivBtn">Вставить div с img</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <script src="script.js"></script>
+    </body>
 </html>
